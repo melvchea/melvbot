@@ -6,7 +6,17 @@ updates:
       - dependency-name: "@anthropic-ai/claude-agent-sdk" # bumped nightly by the 3am maintenance
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
