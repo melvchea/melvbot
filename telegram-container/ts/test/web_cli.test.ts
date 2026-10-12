@@ -46,7 +46,7 @@ test("extract sends the page to the cheap model and prints only the digest and s
   {
     const flaky = harness({
       fetchPage: async (url) => {
-        if (url.includes("b.com")) {
+        if (new URL(url).hostname === "b.com") {
           throw new Error("blocked");
         }
         return { url, contentType: "text/html", text: "ok page" };

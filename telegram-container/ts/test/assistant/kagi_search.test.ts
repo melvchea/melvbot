@@ -21,7 +21,10 @@ test("Kagi HTML results parse to title, URL, snippet and date; Kagi-internal and
     urls.add(h.url);
     assert.ok(h.date === undefined || /^\d{4}-\d{2}-\d{2}$/.test(h.date), `date ${h.date}`);
   }
-  assert.equal(hits.find((h) => h.url.includes("reddit.com"))?.date, "2021-10-03");
+  assert.equal(
+    hits.find((h) => new URL(h.url).hostname.endsWith("reddit.com"))?.date,
+    "2021-10-03",
+  );
   assert.equal(parseKagiResults(fixture, 3).length, 3);
 });
 

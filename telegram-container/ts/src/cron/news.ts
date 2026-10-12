@@ -1,3 +1,5 @@
+import { stripTags } from "../html_text.js";
+
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -71,7 +73,7 @@ function firstTag(block: string, tag: string): string {
   if (!match) {
     return "";
   }
-  return decodeEntities(match[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]+>/g, "")).trim();
+  return decodeEntities(stripTags(match[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1"))).trim();
 }
 
 function linkFrom(block: string): string {

@@ -86,8 +86,9 @@ async function runWeeklyRebuild(c: RebuildCase): Promise<{ status: number | null
     writeExecutable(path.join(bin, "date"), `if [ "$1" = "+%u" ]; then echo ${c.day}; else exec /bin/date "$@"; fi`);
     const run = spawnSync(
       "sh",
-      ["-c", '. "$0"; run_weekly_melvbot_rebuild', path.join(scriptsDir, "daily-maint-melvbot.sh")],
+      ["-c", '. "$0"; run_weekly_melvbot_rebuild', "./daily-maint-melvbot.sh"],
       {
+        cwd: scriptsDir,
         env: {
           ...process.env,
           PATH: `${bin}:${process.env.PATH}`,

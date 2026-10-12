@@ -6,12 +6,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "test": "node --import tsx --test --test-timeout=30000 test/*.test.ts test/*/*.test.ts",
-    "test:coverage": "node --import tsx --test --test-timeout=30000 --experimental-test-coverage --test-coverage-lines=65 --test-coverage-exclude=test/** test/*.test.ts test/*/*.test.ts",
+    "test": "node --import tsx --test --test-timeout=10000 \"test/**/*.test.ts\"",
+    "test:coverage": "node --import tsx --test --test-timeout=10000 --experimental-test-coverage --test-coverage-lines=67 --test-coverage-branches=68 --test-coverage-functions=55 --test-coverage-exclude=test/** \"test/**/*.test.ts\"",
     "doctor": "node --import tsx src/doctor.ts"
   },
   "devDependencies": {
     "@types/node": "^26.0.0",
+    "fast-check": "^4.10.2",
     "tsx": "^4.19.0",
     "typescript": "^7.0.2"
   },
