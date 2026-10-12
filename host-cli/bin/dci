@@ -24,4 +24,7 @@ for kind in dependabot secret-scanning; do
     || { echo "  unavailable: $out"; continue; }
   [[ -z $out ]] && echo "  no open alerts" || { sed 's/^/  /' <<<"$out"; bad=1; }
 done
+echo "Dependabot PRs"
+prs=$(gh pr list --author 'app/dependabot' --json number,title --jq '.[] | "#\(.number) \(.title)"' 2>&1) \
+  && { [[ -z $prs ]] && echo "  none open" || sed 's/^/  /' <<<"$prs"; } || echo "  unavailable: $prs"
 exit "$bad"
