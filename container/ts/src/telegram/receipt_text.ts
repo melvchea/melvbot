@@ -18,10 +18,23 @@ function diffLines(prefix: string, lines: string[]): string[] {
   return extra > 0 ? [...head, `${prefix} …and ${extra} more`] : head;
 }
 
+const NOTE_VERB_TEXT: Record<string, string> = {
+  "note add": "Saved note",
+  "note replace-text": "Updated note",
+  "note replace-section": "Updated note",
+  "note append-history": "Added to note",
+};
+
+function bulletBlock(label: string, lines: string[]): string[] {
+  const shown = diffLines("•", lines);
+  return shown.length > 0 ? ["", `${label}:`, ...shown] : [];
+}
+
 export function formatReceipt(receipt: WriteReceipt): string {
-  const lines = [`Saved: ${receipt.action} on ${receipt.target}`];
-  lines.push(...diffLines("+", receipt.diff?.added ?? []));
-  lines.push(...diffLines("-", receipt.diff?.removed ?? []));
+  const verb = NOTE_VERB_TEXT[receipt.action];
+  const lines = [verb ? `${verb} ${receipt.target}` : `Saved: ${receipt.action} on ${receipt.target}`];
+  lines.push(...bulletBlock("Added", receipt.diff?.added ?? []));
+  lines.push(...bulletBlock("Removed", receipt.diff?.removed ?? []));
   if (receipt.verified === false) {
     lines.push("Could not verify the write; please check it.");
   }

@@ -153,6 +153,22 @@ async function runMelvbotCli(args: ToolArgs, state: McpTurnState): Promise<ToolR
 /** Note writes the agent may stage (`stage: true`) so the user can reply yes instead of the agent asking in prose. */
 const STAGEABLE_NOTE_WRITES = new Set(["note add", "note replace-section", "note replace-text", "note append-history"]);
 
+const clipStaged = (s: string): string => {
+  const text = s.replace(/\s+/g, " ").trim();
+  return text.length > 300 ? `${text.slice(0, 300)}…` : text;
+};
+
+/** Plain-language Confirm text for a staged Note write (no raw CLI argv). */
+export function stagedNoteSummary(action: string, argv: string[]): string {
+  const slug = argv[2] ?? "";
+  const rest = argv.slice(3).filter((a) => !a.startsWith("--"));
+  if (action === "note replace-text") {
+    return `Update note ${slug}?\n\nReplace:\n• ${clipStaged(rest[0] ?? "")}\n\nWith:\n• ${clipStaged(rest[1] ?? "")}`;
+  }
+  const head = action === "note add" ? `Save note ${slug}?` : action === "note append-history" ? `Add to note ${slug}?` : `Update note ${slug}?`;
+  return `${head}\n\n• ${clipStaged(rest.join(" "))}`;
+}
+
 export async function runMelvbotCliInner(args: ToolArgs, state: McpTurnState): Promise<ToolResult> {
   const rawArgs = args.args;
   if (!Array.isArray(rawArgs) || !rawArgs.every((value) => typeof value === "string")) {
@@ -173,13 +189,7 @@ export async function runMelvbotCliInner(args: ToolArgs, state: McpTurnState): P
   if (args.stage === true && action && STAGEABLE_NOTE_WRITES.has(action)) {
     return guarded(async () => {
       assertConfirmableInSource(action, state.source === "telegram" ? "telegram" : "cron");
-      const text = argv.slice(3).filter((a) => !a.startsWith("--")).join(" ").replace(/\s+/g, " ");
-      state.pendingConfirmation = createConfirmation(
-        state.chatKey ?? "cron",
-        action,
-        { args: argv },
-        `${action} ${argv[2] ?? ""}: ${text.length > 300 ? `${text.slice(0, 300)}...` : text}`,
-      );
+      state.pendingConfirmation = createConfirmation(state.chatKey ?? "cron", action, { args: argv }, stagedNoteSummary(action, argv));
       return "this action needs confirmation";
     });
   }

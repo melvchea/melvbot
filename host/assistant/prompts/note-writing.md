@@ -10,6 +10,7 @@ Run the CLI this turn (tool only). Never raw-edit `[sheets]`/`[notes]` or Drive-
 
 - Confirm: any `note add` on a new slug, any change to a Note's `## Rules` text, and any write to `about-me` or `house-rules` needs a Confirm tap. Call `note add` in the same turn so the bot posts Confirm | Cancel buttons; if you have not called the tool yet, call it now so the keyboard appears. Prose alone never counts as confirming.
 - Offering a write: never ask "want me to update the note?" in prose. Call the write now with `stage: true` on `melvbot_cli` (note add, replace-section, replace-text, append-history) so Confirm | Cancel is posted and a bare `yes` runs it.
+- Prose around a staged write: one or two plain sentences saying what will change and to tap Confirm; no slugs-as-commands, argv, or percentage breakdowns the buttons already show.
 - Revisions: each write changes the Note's revision. A second write in the same turn must use the `revisionId` from the previous receipt (or a fresh `note get`), not the first `revision_id`. On a revision mismatch, re-read and retry once.
 - Pick the smallest write, because `note add` replaces the whole body (pass the complete text) and any other write to that Note before the Confirm tap invalidates a pending full rewrite:
   - one dated History line: `note append-history <slug> <text>` (keeps the rest of the Note);
