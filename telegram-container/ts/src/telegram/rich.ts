@@ -1,9 +1,9 @@
 const GFM_TABLE_RE = /^\|.+\|\s*\n\|?\s*:?-{3,}[-| :]*\|?\s*$/m;
 const SPEND_HEADER_RE = /^[\u200b\s\u00a0]*Date[\s\u00a0]+Merchant[\s\u00a0]+Amount[\s\u00a0]*$/im;
 const SPEND_ROW_RE =
-  /^[\u200b\s\u00a0]*(?<date>\d{1,2}[\s\u00a0]+[A-Za-z]{3})[\s\u00a0]+(?<merchant>\S+(?:[\s\u00a0]+\S+)*?)[\s\u00a0]+(?<amount>\\?\$\d[\d,]*(?:\.\d{2})?)[\s\u00a0]*$/im;
+  /^[\u200b\s\u00a0]*(?<date>\d{1,2}[\s\u00a0]+[A-Za-z]{3})[\s\u00a0]+(?<merchant>\S+(?:[\s\u00a0]+\S+)*)[\s\u00a0]+(?<amount>\\?\$\d[\d,]*(?:\.\d{2})?)[\s\u00a0]*$/im;
 const SPEND_BULLET_RE =
-  /^[•*-][\u200b\s\u00a0]+(?<date>\d{1,2}[\s\u00a0]+[A-Za-z]{3})[\s\u00a0]+[—–-][\s\u00a0]+(?<merchant>.+?)[\s\u00a0]+[—–-][\s\u00a0]+\\?\$(?<amount>\d[\d,]*(?:\.\d{2})?)[\s\u00a0]*$/u;
+  /^[•*-][\u200b\s\u00a0]+(?<date>\d{1,2}[\s\u00a0]+[A-Za-z]{3})[\s\u00a0]+[—–-][\s\u00a0]+(?<merchant>\S+(?:[\s\u00a0]+\S+)*)[\s\u00a0]+[—–-][\s\u00a0]+\\?\$(?<amount>\d[\d,]*(?:\.\d{2})?)[\s\u00a0]*$/u;
 const MIN_SPEND_ROWS = 2;
 
 export type RichMessage = { markdown: string };
@@ -13,7 +13,7 @@ function collapseWs(value: string): string {
 }
 
 function gfmEscapeCell(value: string): string {
-  return collapseWs(value).replace(/\|/g, "\\|");
+  return collapseWs(value).replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
 }
 
 function plainAmount(amount: string): string {

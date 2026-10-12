@@ -1,5 +1,7 @@
 /** Fetched-page shaping and small TTL caches for web_search / web_fetch. */
 
+import { stripTags } from "../html_text.js";
+
 /** About 8k tokens of page text; a bigger page is cut at a paragraph boundary. */
 export const WEB_FETCH_MAX_CHARS = 32_000;
 const MAIN_MIN_CHARS = 500;
@@ -34,7 +36,7 @@ function decodeEntities(text: string): string {
 }
 
 function textLength(html: string): number {
-  return html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().length;
+  return stripTags(html).replace(/\s+/g, " ").trim().length;
 }
 
 /** Prefers the largest <article>, then <main>, when it holds a real share of the page's text. */
@@ -82,10 +84,10 @@ export function htmlToMarkdown(html: string, baseUrl?: string): string {
     .replace(/<(script|style|noscript|svg|template|iframe|head|nav|footer|aside|form|button|select)\b[\s\S]*?<\/\1>/gi, " ");
   out = mainContent(out);
   out = out
-    .replace(/<pre\b[^>]*>([\s\S]*?)<\/pre>/gi, (_m, body: string) => `\n\n\`\`\`\n${body.replace(/<[^>]+>/g, "")}\n\`\`\`\n\n`)
+    .replace(/<pre\b[^>]*>([\s\S]*?)<\/pre>/gi, (_m, body: string) => `\n\n\`\`\`\n${stripTags(body)}\n\`\`\`\n\n`)
     .replace(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi, (_m, level: string, body: string) => `\n\n${"#".repeat(Number(level))} ${body}\n\n`)
     .replace(/<a\b[^>]*?href\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>([\s\S]*?)<\/a>/gi, (_m, dq: string | undefined, sq: string | undefined, body: string) => {
-      const label = body.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+      const label = stripTags(body).replace(/\s+/g, " ").trim();
       const href = resolveHref(decodeEntities(dq ?? sq ?? ""), baseUrl);
       if (!label || !href || label === href || keptLinks >= MAX_KEPT_LINKS || new URL(href).hostname === baseHost) {
         return label;

@@ -111,7 +111,7 @@ function rangeLabel(start: string, end: string): string {
 }
 
 function cell(value: string): string {
-  return value.replace(/\s+/g, " ").trim().replace(/\|/g, "\\|");
+  return value.replace(/\s+/g, " ").trim().replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
 }
 
 function amountCell(amount: string): string {

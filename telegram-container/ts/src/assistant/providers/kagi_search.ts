@@ -1,3 +1,4 @@
+import { removeUntilStable } from "../../html_text.js";
 import type { SearchHit } from "../search_router.js";
 
 export const KAGI_ENV_KEY = "KAGI_SESSION_LINK";
@@ -211,7 +212,10 @@ function parseAttrs(raw: string): Map<string, string> {
 function parseTree(html: string): Node {
   const root: Node = { tag: "#root", attrs: new Map(), kids: [] };
   const stack = [root];
-  const src = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<(script|style|svg)\b[\s\S]*?<\/\1\s*>/gi, "");
+  const src = removeUntilStable(
+    removeUntilStable(html, /<!--[\s\S]*?-->/g),
+    /<(script|style|svg)\b[\s\S]*?<\/\1\s*>/gi,
+  );
   const re = /<\/([a-zA-Z][\w-]*)\s*>|<([a-zA-Z][\w-]*)((?:[^>"']|"[^"]*"|'[^']*')*)>|([^<]+|<)/g;
   for (const m of src.matchAll(re)) {
     if (m[1]) {

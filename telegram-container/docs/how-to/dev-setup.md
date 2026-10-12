@@ -9,7 +9,7 @@ npx tsc -p tsconfig.json --noEmit
 npm test
 ```
 
-`npm run test:coverage` is what CI runs; it fails below 65% line coverage and any test over 30 s.
+`npm run test:coverage` is what CI runs; it fails below 67% lines, 68% branches or 55% functions (measured 69/71/58 on 2026-10-12; raise the gates when coverage rises) and any test over 30 s.
 ### Test policy
 
 No cap on the number of tests. Add every key test that a necessary behaviour needs; always prevent and remove non-key tests (trivial, duplicate, or wiring-only). Every fixed bug gets one regression test reproducing it.

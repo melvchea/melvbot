@@ -1,3 +1,4 @@
+import { stripTags } from "../../html_text.js";
 import { ProviderHttpError } from "./http_error.js";
 
 export const BRAVE_SEARCH_ENV_KEY = "BRAVE_SEARCH_API_KEY";
@@ -14,13 +15,12 @@ const BRAVE_SNIPPET_MAX_CHARS = 400;
 
 /** Brave wraps matched terms in <strong>; drop tags and decode the few entities it emits. */
 export function cleanSnippet(raw: string, maxChars = 300): string {
-  const text = raw
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
+  const text = stripTags(raw)
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&amp;/g, "&")
     .replace(/\s+/g, " ")
     .trim();
   return text.length > maxChars ? `${text.slice(0, maxChars).trimEnd()}…` : text;
