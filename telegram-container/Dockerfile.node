@@ -43,4 +43,7 @@ COPY --link --chmod=0755 docker/melvbot-wrapper.sh /usr/local/bin/melvbot
 USER melvbot
 ENV NODE_ENV=production
 
+HEALTHCHECK --interval=5m --timeout=30s --start-period=60s --retries=3 \
+    CMD ["melvbot", "doctor"]
+
 CMD ["node", "/opt/melvbot-ts/dist/index.js"]
