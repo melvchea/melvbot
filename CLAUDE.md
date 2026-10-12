@@ -7,7 +7,7 @@ Routing per message: non-LLM `,commands` and prose intercepts (`src/telegram/pro
 Runtime rule files: `host/assistant/prompts/`; host helpers and hooks: `host/README.md`.
 
 ## Commands
-- Verify per change `dverify` (tcheck + touched tests; guard denies tcheck / targeted ttest); full suite bare `ttest`; build `dbuild`
+- Verify per change `dverify` (typecheck + touched tests; the only local check, GitHub CI runs the full suite); build `dbuild`
 - Deploy: `ddeploy` (`--dry-run`, extra services as args); read-only SQLite `ddb` (`turn_log` is in `conversation`, date column `created_at`)
 
 ## Rules
@@ -25,7 +25,7 @@ Runtime rule files: `host/assistant/prompts/`; host helpers and hooks: `host/REA
 - Cheapest first: non-LLM (`rg`, `sed -n`, `jq`) → MiniMax helpers over ~30 lines (`digest`, `drun`, `dverify`, `dbuild`, `webx ask`) → main-session edits ≤50 lines → `coder` (Haiku 5.5 medium) after posting the spec and getting a yes. Searches: `dexplore` first; never `fork`.
 
 ## Cost per completed outcome (full form: README "Cost rules"; review `!` rows in `dsaved --sessions`)
-- Batch open requests and decisions into one AskUserQuestion before any change. Before executing anything (edits, `coder`, deploy, commit), always end with a yes/no AskUserQuestion "Are all prompts and decisions in?" and act only on yes; a new request after that restarts the check. Verify (`dverify`, `ttest` once at end unless `ddeploy` follows) before reporting done.
+- Batch open requests and decisions into one AskUserQuestion before any change. Before executing anything (edits, `coder`, deploy, commit), always end with a yes/no AskUserQuestion "Are all prompts and decisions in?" and act only on yes; a new request after that restarts the check. Verify with `dverify` before reporting done.
 - Every question to the user (commit/push, deploy, proceed, blockers, "how to go ahead", fact checks, `!` commands, each P0/P1/P2 item) is a yes/no AskUserQuestion, never prose or bullets. That includes anything unverified or blocked by the sandbox (no GitHub access, no systemd bus, a leftover timer, a file delete or symlink the sandbox refuses): never write "run this in your terminal" or "you can ignore X" in the summary; ask "Run `! cmd` yourself?" or "Re-check from the host?" as a yes/no AskUserQuestion, never a "you'll need to…" note in the summary. Call it before the summary; the final message ends with a statement, never a question, and that includes offers like "Do you want me to…", "Should I…" or "tell me if you want…" (e.g. commit/push after a change): put them in an AskUserQuestion instead.
 - Commands for the user to paste (Termius wraps lines): every line under 50 chars including the `! ` prefix, break with `\` outside quotes, build long values from short `X=...` vars, no quote or `|` spanning a break; else write a script and give a one-line call. Applies everywhere I show a command, AskUserQuestion included. Always give the suggested command in a fenced block (never inline in prose or a table), pre-broken into lines <50 chars; count before sending, final summaries too. Path `~/melvbot-storage/container/...` is too long: `cd` into it or set `D=...` first.
 - Writing files (code, docs, memory notes and `MEMORY.md`, scripts): always the Edit tool first (Write for new files), never Bash redirects or heredocs, and never ask the user to run a `!` command for it; the sandbox blocks shell writes that Edit allows. Fall back to a `!` command only if Edit is denied.
