@@ -7,7 +7,7 @@ set -eu
 #
 # Tests set SUDO, SYSTEMCTL, and SYSTEMD_DIR to a fake toolchain and dest.
 
-REPO_ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+REPO_ROOT="$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)"
 DEPLOY_DIR="$REPO_ROOT/deploy"
 SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
 SUDO="${SUDO:-sudo}"

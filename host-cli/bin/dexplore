@@ -11,10 +11,11 @@ cd "$HOME/melvbot-storage" || exit 1
 files=$(git ls-files -- "$dir" | grep -vE '(package-lock\.json|\.(png|jpg|svg|lock))$')
 
 down=$(mktemp -u)
+# shellcheck disable=SC2154 # rc is assigned inside the trap string
 trap 'rc=$?; rm -f "$down" "$down.err"; printf "%s\tdexplore:exit\t0\t0\texit\t%s\t0\t0\t0\n" "$(date -Iseconds)" "$rc" >>~/.local/state/melvbot/helper-usage.tsv' EXIT
 check() { [[ -e $down ]] && { echo "dexplore: digest failed ($(head -n1 "$down.err" 2>/dev/null)); use Explore" >&2; exit 3; }; }
 dg() { # strict digest: flag an outage instead of passing a raw tail on as an answer
-  DIGEST_RAW= DIGEST_STRICT=1 digest "$@" 2>"$down.err"
+  DIGEST_RAW='' DIGEST_STRICT=1 digest "$@" 2>"$down.err"
   [[ $? -eq 3 ]] && { : >"$down"; return 1; }
   return 0
 }

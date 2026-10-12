@@ -4,7 +4,6 @@ set -euo pipefail
 
 ENV_FILE="/etc/melvbot/melvbot.env"
 ENV_DIR="/etc/melvbot"
-COMPOSE_FILE="$HOME/melvbot-storage/telegram-container/docker-compose.yml"
 MELVBOT_COMPOSE="$HOME/.local/bin/melvbot-compose"
 
 log() { printf '[secure-melvbot-env] %s\n' "$*"; }

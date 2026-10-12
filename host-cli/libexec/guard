@@ -2,7 +2,7 @@
 # Publish guard: fail on IPv4 addresses and emails outside the allowlists, and on
 # any GUARD_TERMS match (extended regex of private names; CI secret, never in the repo).
 set -u
-cd "$(git rev-parse --show-toplevel)"
+cd "$(git rev-parse --show-toplevel)" || exit 1
 
 ip_ok='^(127\.0\.0\.1|169\.254\.169\.254|93\.184\.215\.14)$'
 mail_ok='^(noreply@anthropic\.com|[a-z]+@example\.com|k@person\.com)$'
