@@ -1,10 +1,42 @@
 const GFM_TABLE_RE = /^\|.+\|\s*\n\|?\s*:?-{3,}[-| :]*\|?\s*$/m;
 const SPEND_HEADER_RE = /^[\u200b\s]*Date\s+Merchant\s+Amount\s*$/im;
-const SPEND_ROW_RE =
-  /^[\u200b\s]*(?<date>\d{1,2}\s+[A-Za-z]{3})\s+(?<merchant>\S(?:\S|\s(?=\s*\S))*)\s+(?<amount>\\?\$\d[\d,]*(?:\.\d{2})?)\s*$/im;
-const SPEND_BULLET_RE =
-  /^[•*-][\u200b\s]+(?<date>\d{1,2}\s+[A-Za-z]{3})\s+[—–-]\s+(?<merchant>\S(?:\S|\s(?=\s*\S))*)\s+[—–-]\s+\\?\$(?<amount>\d[\d,]*(?:\.\d{2})?)\s*$/u;
+// The merchant is never matched by a regex: the date prefix and the trailing amount are
+// anchored separately and the merchant is the text between them (avoids backtracking).
+const SPEND_ROW_DATE_RE = /^[\u200b\s]*(\d{1,2}\s+[A-Za-z]{3})\s+/;
+const SPEND_ROW_AMOUNT_RE = /(\\?\$\d[\d,]*(?:\.\d{2})?)$/;
+const SPEND_BULLET_DATE_RE = /^[•*-][\u200b\s]+(\d{1,2}\s+[A-Za-z]{3})\s+[—–-]\s+/u;
+const SPEND_BULLET_AMOUNT_RE = /[—–-]\s+\\?\$(\d[\d,]*(?:\.\d{2})?)$/u;
 const MIN_SPEND_ROWS = 2;
+
+type SpendRow = { date: string; merchant: string; amount: string };
+
+function parseSpendRow(line: string): SpendRow | null {
+  const head = SPEND_ROW_DATE_RE.exec(line);
+  if (head === null) {
+    return null;
+  }
+  const rest = line.slice(head[0].length).trimEnd();
+  const tail = SPEND_ROW_AMOUNT_RE.exec(rest);
+  if (tail === null || tail.index === 0 || !/\s/.test(rest[tail.index - 1])) {
+    return null;
+  }
+  const merchant = rest.slice(0, tail.index).trim();
+  return merchant === "" ? null : { date: head[1], merchant, amount: tail[1] };
+}
+
+function parseSpendBullet(line: string): SpendRow | null {
+  const head = SPEND_BULLET_DATE_RE.exec(line);
+  if (head === null) {
+    return null;
+  }
+  const rest = line.slice(head[0].length).trimEnd();
+  const tail = SPEND_BULLET_AMOUNT_RE.exec(rest);
+  if (tail === null || tail.index === 0 || !/\s/.test(rest[tail.index - 1])) {
+    return null;
+  }
+  const merchant = rest.slice(0, tail.index).trim();
+  return merchant === "" ? null : { date: head[1], merchant, amount: tail[1] };
+}
 
 export type RichMessage = { markdown: string };
 
@@ -49,7 +81,7 @@ export function containsSpendColumnTable(text: string): boolean {
   }
   let hits = 0;
   for (const line of text.split("\n")) {
-    if (SPEND_ROW_RE.test(line)) {
+    if (parseSpendRow(line) !== null) {
       hits += 1;
       if (hits >= MIN_SPEND_ROWS) {
         return true;
@@ -62,7 +94,7 @@ export function containsSpendColumnTable(text: string): boolean {
 export function containsSpendBulletList(text: string): boolean {
   let hits = 0;
   for (const line of text.split("\n")) {
-    if (SPEND_BULLET_RE.test(line)) {
+    if (parseSpendBullet(line) !== null) {
       hits += 1;
       if (hits >= MIN_SPEND_ROWS) {
         return true;
@@ -118,7 +150,7 @@ export function spendColumnsToGfm(text: string): string | null {
       i += 1;
       continue;
     }
-    if (SPEND_HEADER_RE.test(line) || SPEND_ROW_RE.test(line)) {
+    if (SPEND_HEADER_RE.test(line) || parseSpendRow(line) !== null) {
       const blockStart = i;
       const rows: [string, string, string][] = [];
       let hasHeader = false;
@@ -127,15 +159,11 @@ export function spendColumnsToGfm(text: string): string | null {
         i += 1;
       }
       while (i < lines.length) {
-        const match = lines[i].match(SPEND_ROW_RE);
-        if (match === null || !match.groups) {
+        const row = parseSpendRow(lines[i]);
+        if (row === null) {
           break;
         }
-        rows.push([
-          collapseWs(match.groups.date),
-          collapseWs(match.groups.merchant),
-          collapseWs(match.groups.amount),
-        ]);
+        rows.push([collapseWs(row.date), collapseWs(row.merchant), collapseWs(row.amount)]);
         i += 1;
       }
       if (!rows.length && !hasHeader) {
@@ -177,18 +205,14 @@ export function spendBulletsToGfm(text: string): string | null {
       i += 1;
       continue;
     }
-    if (SPEND_BULLET_RE.test(lines[i])) {
+    if (parseSpendBullet(lines[i]) !== null) {
       const rows: [string, string, string][] = [];
       while (i < lines.length) {
-        const match = lines[i].match(SPEND_BULLET_RE);
-        if (match === null || !match.groups) {
+        const row = parseSpendBullet(lines[i]);
+        if (row === null) {
           break;
         }
-        rows.push([
-          collapseWs(match.groups.date),
-          collapseWs(match.groups.merchant),
-          `$${match.groups.amount}`,
-        ]);
+        rows.push([collapseWs(row.date), collapseWs(row.merchant), `$${row.amount}`]);
         i += 1;
       }
       out.push(spendTable(rows));

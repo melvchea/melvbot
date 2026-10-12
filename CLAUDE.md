@@ -33,5 +33,5 @@ Runtime rule files: `host-cli/assistant/prompts/`; host helpers and hooks: `host
 - Answers ≤10 lines, no recaps; narrow reads, no re-reads; one task per session, `/clear` after each outcome.
 - Best-practice requests: research the latest forums/docs with `webx ask`, keep only measures practical for this single-user Telegram assistant (skip enterprise overkill, drop what is already covered), list as P0/P1/P2 with a yes/no AskUserQuestion per item.
 - On any cost/optimisation request, first run `digest --run "dsaved --review 7" "trends, ! sessions: cause and fix"`, then batch fixes as P0/P1/P2.
-- Code-scanning alerts: run `dalerts`, then one yes/no AskUserQuestion per severity ("Fix the N high alerts?") before fixing; CI fails while any alert is open.
+- CI/CodeQL loop after every push: show all open alerts (`dalerts`, Dependabot, secret scanning) and the CI runs; fix every failure and alert (ask one yes/no AskUserQuestion per severity or issue first), push, and repeat until CI is green with 0 alerts; then `ddeploy` without asking. CI fails while any alert is open.
 - When asked about optimisation, also check `turn_log` for frequent Claude prompts that could become intercepts.
