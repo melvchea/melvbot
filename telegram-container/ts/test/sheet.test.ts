@@ -7,7 +7,7 @@ import { appendNamed } from "../src/sheet/sheets.js";
 import { SHEET_LOCK_STALE_MS, withSheetWriteLock } from "../src/sheet/sheet_lock.js";
 import { spendCycle, normalizeSpendCard, spendDedupeKey } from "../src/sheet/spend_cycle.js";
 import { findNearDuplicateSpend } from "../src/sheet/spend_dedupe.js";
-import { listSpendAll } from "../src/sheet/spend_list.js";
+import { listSpend, listSpendAll } from "../src/sheet/spend_list.js";
 import { voidSpend } from "../src/sheet/spend_write.js";
 import { setMelvbotEnv } from "./helpers/env.js";
 import { googleHome } from "./helpers/google_home.js";
@@ -40,6 +40,27 @@ test("listSpendAll groups non-voided entries by cycle, newest first", async () =
       out.cycles.map((c) => [c.cycle_start, c.total, c.headroom, c.entries.length]),
       [["2026-09-27", "25.75", "474.25", 2], ["2026-08-27", "10.00", "490.00", 1]],
     );
+  } finally {
+    stub.restore();
+    restoreEnv();
+  }
+});
+
+test("listSpend returns the cycle's entries oldest date first", async () => {
+  const { restore: restoreEnv } = googleHome();
+  const head = ["id", "owner", "card", "spent_on", "merchant", "amount", "cycle_start", "cycle_end", "source_ref", "voided_at"];
+  const row = (id: string, spent: string) => [id, "owner1", "card1", spent, "Shop", "1.00", "2026-10-01", "2026-10-31", "", ""];
+  const tabs: Record<string, string[][]> = {
+    Transactions: [head, row("1", "2026-10-05"), row("2", "2026-10-02"), row("3", "2026-10-01")],
+    Rules: [["key", "value"], ["target", "500.00"]],
+  };
+  const stub = stubFetch((url) => {
+    const tab = decodeURIComponent(/values\/([^?]+)/.exec(url.href)![1]).replace(/'/g, "");
+    return { ok: true, status: 200, json: async () => ({ values: tabs[tab] }) } as Response;
+  });
+  try {
+    const out = await listSpend({ owner: "owner1", card: "card1", cycleDate: "2026-10-06" });
+    assert.deepEqual(out.entries.map((e) => e.spent_on), ["2026-10-01", "2026-10-02", "2026-10-05"]);
   } finally {
     stub.restore();
     restoreEnv();

@@ -66,7 +66,9 @@ export async function listSpend(options: {
     owner2_threshold_exceeded: limit !== null && total > limit,
     telegram_totals: spendTelegramTotals(total, target, limit),
     ...(policy.policySource === "fallback" ? { policy_source: "fallback" as const } : {}),
-    entries: entries.map((entry) => ({
+    entries: entries
+      .sort((a, b) => (a.spent_on < b.spent_on ? -1 : a.spent_on > b.spent_on ? 1 : a.id - b.id))
+      .map((entry) => ({
       id: entry.id,
       owner: entry.owner,
       card: entry.card,
