@@ -11,6 +11,12 @@ updates:
     groups:
       npm-minor-patch:
         update-types: ["minor", "patch"]
+  - package-ecosystem: docker
+    directory: /telegram-container
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
   - package-ecosystem: github-actions
     directory: /
     schedule:
