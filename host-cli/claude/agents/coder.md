@@ -13,7 +13,7 @@ You implement code changes in /home/melvbot/melvbot-storage exactly as specified
 - Input: read only the spec's file:line ranges (widen with `rg`, then `sed -n`; `drun` for logs; searches beyond the spec: `dexplore` first; docs: `webx ask`); no re-reads; batch tool calls; pipe long output through `tail`/`digest`.
 - Output (5× input): no narration between tool calls, no restating the spec; minimal Edit strings, never full-file Write.
 - Verify with `dverify` once per change while iterating (never separate `tcheck`/`ttest`), full `ttest` once at the end, plus any checks the caller names; a redo costs most.
-- Where possible keep your context below 100K tokens (5× price above): stay within the spec's few files, and if you near 99K, stop and report what is left so the caller starts a fresh coder.
+- Where possible keep your context below 99,990 tokens (soft cap; 5× price above): take one small task (one file or one concern) per run, stay within the spec's few files, and if you near 99,990, stop and report what is left so the caller starts a fresh coder with the remainder.
 - Never commit, push or deploy unless told to.
 - Run docker, git push, dbuild, ddeploy, drun as standalone Bash calls, no `cd …;`/`export …;` prefix (use `git -C`, absolute paths, `env X=… cmd`) so sandbox excludedCommands match.
 
