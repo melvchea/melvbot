@@ -16,7 +16,7 @@ Attach `.csv .tsv .txt .json .md .log` (up to 512 KB). The first 60,000 characte
 
 ## Schedule tasks
 
-Jobs live in `cron_jobs.db` and run as systemd timers, each calling `melvbot cron run-once <id>`. To rerun one by hand from the host, use `drun "result" docker exec melvbot melvbot cron run-once <id> --force`.
+Jobs live in `cron_jobs.db` and run as systemd timers, each calling `melvbot cron run-once <id>`. To rerun one by hand from the host, use `digest --run "docker exec melvbot melvbot cron run-once <id> --force" "result"`.
 
 ```bash
 docker exec melvbot melvbot cron list

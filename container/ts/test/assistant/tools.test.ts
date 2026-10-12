@@ -33,7 +33,7 @@ beforeEach(() => {
   freshDb();
   clearWebCaches();
 });
-// Bug: example.com was resolved via real DNS, so fetch tests failed offline (sandboxed ttest blocked ddeploy).
+// Bug: example.com was resolved via real DNS, so fetch tests failed offline (sandboxed dverify blocked ddeploy).
 // Unlisted hosts throw instead of falling through to real DNS.
 setHostLookupForTests((async (host: string) => {
   if (host === "example.com" || host.endsWith(".example")) {

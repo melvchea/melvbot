@@ -56,8 +56,8 @@ run_claude_sdk_update() {
     _deployed=0
     _step=install
     if _sdk_in_ts npm install "$CLAUDE_SDK_PKG@$_new" --save --cache "$_tmp/npm" \
-        && _step=tcheck && _sdk_in_ts tcheck \
-        && _step=ttest && _sdk_in_ts ttest \
+        && _step=typecheck && _sdk_in_ts dverify --check \
+        && _step=tests && _sdk_in_ts dverify --all \
         && _step=ddeploy && _deployed=1 && _sdk_in_ts ddeploy \
         && _step=post-maint && run_post_maint_functional_tests; then
         :

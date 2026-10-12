@@ -1,11 +1,42 @@
 #!/usr/bin/env bash
-# Verify the current change in one call: tcheck, then only the tests touched by the git diff (incl. untracked files).
-#   dverify          one line on pass; first failure digest on fail
-case ${1:-} in -h|--help) echo 'usage: dverify  (tcheck, then ttest on changed test files plus tests matching or importing changed src files; "dverify: ok" on pass, exit status of the failing step)'; exit 0 ;; esac
+# Verify the current change in one call: typecheck, then only the tests touched by the git diff (incl. untracked files).
+#   dverify           one line on pass; first failure digest on fail
+#   dverify --check   typecheck only (tsc --noEmit): "tsc: clean" or a digest of errors
+#   dverify --all     typecheck, then the full test suite; digest of failures only
+case ${1:-} in
+  -h|--help) echo 'usage: dverify [--check|--all]  (default: typecheck, then tests touched by the git diff; "dverify: ok" on pass; --check: typecheck only; --all: full suite; exit status of the failing step)'; exit 0 ;;
+  ""|--check|--all) ;;
+  *) echo 'usage: dverify [--check|--all]' >&2; exit 2 ;;
+esac
+export DIGEST_CALLER=${DIGEST_CALLER:-dverify}
 ts=$HOME/melvbot-storage/container/ts
 cd "$ts" || exit 1
-tc=$(tcheck 2>&1); rc=$?
-(( rc )) && { echo "dverify: tcheck failed"; echo "$tc"; exit "$rc"; }
+
+typecheck() { # plain tsc, no model call; failures are digested
+  local tsc_out rc
+  tsc_out=$(npx tsc -p tsconfig.json --noEmit 2>&1); rc=$?
+  if (( rc == 0 )); then
+    [[ -n $tsc_out ]] && echo "$tsc_out"
+    echo "tsc: clean"
+  else
+    printf '%s\n' "$tsc_out" | digest "TypeScript errors: file:line and message, or say clean"
+  fi
+  return $rc
+}
+
+run_tests() { # run_tests [test files...]: digest of failures only (default: every test)
+  local files
+  if (( $# )); then files=("$@"); else files=(test/*.test.ts test/*/*.test.ts); fi
+  digest --run "$(printf '%q ' node --import tsx --test "${files[@]}")" \
+    "pass/fail counts; for each failing test: name, file:line, assertion message"
+}
+
+case ${1:-} in
+  --check) typecheck; exit ;;
+  --all) typecheck && run_tests; exit ;;
+esac
+tc=$(typecheck 2>&1); rc=$?
+(( rc )) && { echo "dverify: typecheck failed"; echo "$tc"; exit "$rc"; }
 changed=$({ git diff --name-only HEAD --relative; git ls-files --others --exclude-standard; } | sort -u)
 declare -A tests=()
 while IFS= read -r f; do
@@ -19,7 +50,7 @@ while IFS= read -r f; do
           rg -l --glob '*.test.ts' "from ['\"][^'\"]*/${base}(\\.js)?['\"]" test 2>/dev/null; } | sort -u) ;;
   esac
 done <<<"$changed"
-if (( ${#tests[@]} == 0 )); then echo "dverify: tcheck clean; no touched tests (run ttest for the full suite)"; exit 0; fi
-out=$(ttest "${!tests[@]}" 2>&1); rc=$?
-(( rc )) && { echo "dverify: ttest failed (${#tests[@]} files)"; echo "$out"; exit "$rc"; }
-echo "dverify: ok (tcheck clean, ${#tests[@]} test files pass: ${!tests[*]})"
+if (( ${#tests[@]} == 0 )); then echo "dverify: tsc clean; no touched tests (run dverify --all for the full suite)"; exit 0; fi
+out=$(run_tests "${!tests[@]}" 2>&1); rc=$?
+(( rc )) && { echo "dverify: tests failed (${#tests[@]} files)"; echo "$out"; exit "$rc"; }
+echo "dverify: ok (tsc clean, ${#tests[@]} test files pass: ${!tests[*]})"

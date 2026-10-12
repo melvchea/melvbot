@@ -2,7 +2,7 @@
 # Typecheck, test, build and deploy melvbot, then probe the doctor.
 #   ddeploy [--dry-run] [extra-service ...]
 case ${1:-} in
-  -h|--help) echo 'usage: ddeploy [--dry-run] [--no-ci] [extra-service ...]  (CI gate on HEAD, tcheck + ttest only with --no-ci or a dirty container, dbuild, compose up melvbot [+services], doctor probe)'; exit 0 ;;
+  -h|--help) echo 'usage: ddeploy [--dry-run] [--no-ci] [extra-service ...]  (CI gate on HEAD, dverify --check + dverify --all only with --no-ci or a dirty container, dbuild, compose up melvbot [+services], doctor probe)'; exit 0 ;;
 esac
 dry=0 noci=0
 while [[ ${1:-} == --dry-run || ${1:-} == --no-ci ]]; do
@@ -41,10 +41,10 @@ fi
 have_prev=0
 if (( ! dry )) && docker tag melvbot-ts:latest melvbot-ts:prev 2>/dev/null; then have_prev=1; fi
 if (( ! noci )) && [[ -z $(git status --porcelain -- .) ]]; then
-  echo "ddeploy: tcheck/ttest skipped (CI of HEAD passed, container clean)"
+  echo "ddeploy: dverify --check/--all skipped (CI of HEAD passed, container clean)"
 else
-  step tcheck tcheck
-  step ttest ttest
+  step typecheck dverify --check
+  step tests dverify --all
 fi
 step dbuild dbuild
 (( dry )) || docker tag melvbot-ts:latest "melvbot-ts:$(git rev-parse --short HEAD)" # per-commit tag for manual rollback

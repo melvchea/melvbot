@@ -5,7 +5,7 @@
 # --raw (or DIGEST_RAW=1) skips the model and prints the last 60 lines. If both providers fail, the same raw tail is printed,
 # unless DIGEST_STRICT=1: then nothing is printed and the exit status is 3.
 # Every call appends a line to ~/.local/state/melvbot/helper-usage.tsv (see dsaved).
-case ${1:-} in -h|--help) echo 'usage: <command> | digest [--raw] "<what to extract>" [--words 120]'; exit 0 ;; esac
+case ${1:-} in -h|--help) echo 'usage: <command> | digest [--raw] "<what to extract>" [--words 120]   or   digest --run "<cmd>" "<what to extract>"  (exit status of <cmd>)'; exit 0 ;; esac
 raw=${DIGEST_RAW:-}
 run=
 args=()
@@ -22,10 +22,14 @@ trap 'rm -f "$tmp" "$out" "$err"' EXIT
 start=$(date +%s%N)
 caller=${DIGEST_CALLER:-direct}
 # --run "<cmd>": run it here, so the whole call matches the sandbox's `digest *` exclusion (a pipe does not).
-if [[ -n $run ]]; then bash -c "$run" >"$tmp" 2>&1 </dev/null; else cat >"$tmp"; fi
+cmd_status=0
+if [[ -n $run ]]; then bash -c "$run" >"$tmp" 2>&1 </dev/null; cmd_status=$?; else cat >"$tmp"; fi
 mode=model
 status=0
-if [[ -n $raw && $raw != 0 ]]; then
+if [[ -n $run && ! -s $tmp ]]; then
+  mode=passthrough
+  echo "(no output, exit $cmd_status)" >"$out"
+elif [[ -n $raw && $raw != 0 ]]; then
   mode=raw
   tail -n 60 "$tmp" >"$out"
 elif (( $(wc -l <"$tmp") <= ${DIGEST_MIN_LINES:-30} )); then
@@ -33,7 +37,9 @@ elif (( $(wc -l <"$tmp") <= ${DIGEST_MIN_LINES:-30} )); then
   mode=passthrough
   cp "$tmp" "$out"
 else
-  timeout 120 docker exec -i melvbot melvbot digest "${args[@]}" <"$tmp" >"$out" 2>"$err" || status=$?
+  ask=("${args[@]}")
+  [[ -n $run ]] && ask[0]="${args[0]:-what to extract} (command: $run; exit $cmd_status)"
+  timeout 120 docker exec -i melvbot melvbot digest "${ask[@]}" <"$tmp" >"$out" 2>"$err" || status=$?
   read -r tin tout < <(sed -n 's/^helper-tokens: \([0-9]*\) \([0-9]*\)$/\1 \2/p' "$err" | tail -n 1)
   grep -v '^helper-tokens: ' "$err" >&2 || true
   if [[ $status -ne 0 && $status -ne 2 && -n ${DIGEST_STRICT:-} && $DIGEST_STRICT != 0 ]]; then
@@ -50,6 +56,7 @@ fi
 cat "$out"
 rc=$status
 [[ $mode != model && $mode != strict-fail && $status -ne 2 ]] && rc=0
+[[ -n $run ]] && rc=$cmd_status
 {
   mkdir -p ~/.local/state/melvbot
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(date -Iseconds)" "${caller:-unknown}" "$(wc -c <"$tmp")" "$(wc -c <"$out")" "$mode" "$rc" "$(( ($(date +%s%N) - start) / 1000000 ))" "${tin:-0}" "${tout:-0}" >>~/.local/state/melvbot/helper-usage.tsv

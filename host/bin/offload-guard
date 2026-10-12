@@ -139,16 +139,16 @@ case $tool in
   Bash)
     cmd=$(jq -r '.tool_input.command // ""' <<<"$input")
     [[ $cmd == *'# raw-ok'* ]] && exit 0
-    # Per-change verification is one call: dverify. Bare ttest (full suite) stays allowed for the final run.
-    grep -qE '(^|[|;(]|&&)[[:space:]]*(tcheck\b|ttest[[:space:]]+[^-|;&[:space:]])' <<<"$cmd" &&
-      deny "Use \`dverify\` (tcheck + touched tests in one call); bare \`ttest\` only for the final full run."
+    # Per-change verification is one call: dverify. The full suite is dverify --all (final run).
+    grep -qE '(^|[|;(]|&&)[[:space:]]*(tcheck|ttest)([[:space:]]|$)' <<<"$cmd" &&
+      deny "tcheck and ttest are retired: use \`dverify\` (typecheck + touched tests), \`dverify --check\`, or \`dverify --all\` (full suite)."
     # Docker helpers are sandbox-excluded only as the whole command; a pipe or chain runs them sandboxed (no docker socket).
-    if grep -qE '(^|[|;&(])[[:space:]]*(ddeploy|dbuild|ttest|dverify)([[:space:]]|$)' <<<"$cmd" && grep -qE '[|;&]' <<<"$cmd"; then
-      deny "Run ddeploy/dbuild/ttest/dverify bare (no pipes, &&, ;, ||): the sandbox exclusion only matches the bare command."
+    if grep -qE '(^|[|;&(])[[:space:]]*(ddeploy|dbuild|dverify)([[:space:]]|$)' <<<"$cmd" && grep -qE '[|;&]' <<<"$cmd"; then
+      deny "Run ddeploy/dbuild/dverify bare (no pipes, &&, ;, ||): the sandbox exclusion only matches the bare command."
     fi
 
     # Already filtered through a digest helper or a cheap non-LLM filter.
-    grep -qE '\|\s*(digest|head|tail|grep|rg|wc|jq|sort|uniq|cut|awk)\b|(^|[|;(]|&&)[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*(drun|dturns|ddeploy|ddb|ttest|dverify|dbuild|webx)\b' <<<"$cmd" && exit 0
+    grep -qE '\|\s*(digest|head|tail|grep|rg|wc|jq|sort|uniq|cut|awk)\b|(^|[|;(]|&&)[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*(dturns|ddeploy|ddb|dverify|dbuild|webx)\b' <<<"$cmd" && exit 0
 
     # Quoted text (commit messages, questions) is not a command.
     bare=$(perl -0pe "s/\"[^\"]*\"//gs; s/'[^']*'//gs" <<<"$cmd")
@@ -157,7 +157,7 @@ case $tool in
     grep -qE '\bgit (diff|show|log -p)\b' <<<"$bare" && ! grep -qE -- '--(stat|shortstat|numstat|name-only|name-status|quiet|exit-code)\b|--format|--oneline' <<<"$bare" &&
       deny "Raw diff. Use \`git diff --stat\`, \`git diff -- <file> | head -n N\`, or pipe through \`digest\`."
     grep -qE '\bnode --import tsx --test\b|\bnpm (run )?test\b' <<<"$cmd" &&
-      deny "Raw test output. Use \`ttest\` (failures only)."
+      deny "Raw test output. Use \`dverify --all\` (failures only)."
     grep -qE '\btsc\b' <<<"$cmd" && deny "Raw typecheck output. Use \`dverify\`."
     grep -qE '\bdocker compose build\b' <<<"$cmd" && deny "Raw build output. Use \`dbuild\`."
     # `cat bigfile` with no filter.

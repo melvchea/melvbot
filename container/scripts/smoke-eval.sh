@@ -1,6 +1,6 @@
 #!/bin/sh
 # On-demand smoke run: canned Telegram-style prompts through the agent turn.
-# Not part of ttest or CI. Every prompt is a real Claude turn (uses quota) and
+# Not part of dverify --all or CI. Every prompt is a real Claude turn (uses quota) and
 # may write notes or turn_log rows. Needs jq and the melvbot container running.
 # Usage: smoke-eval.sh [prompts.json]
 set -u

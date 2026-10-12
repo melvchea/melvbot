@@ -5,4 +5,4 @@ case ${1:-} in -h|--help) echo "usage: dbuild [docker compose build args]"; exit
 export DIGEST_CALLER=${DIGEST_CALLER:-dbuild}
 export COMPOSE_BAKE="${COMPOSE_BAKE:-true}"
 cd "$HOME/melvbot-storage/container" || exit 1
-exec drun "build result; on failure the failing step and exact error" docker compose build "$@"
+exec digest --run "$(printf '%q ' docker compose build "$@")" "build result; on failure the failing step and exact error"

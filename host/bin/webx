@@ -4,11 +4,26 @@
 #   webx search "<query>" [--n 5]
 #   webx extract <url> "<question>" [--words 200] [--raw]
 #   webx ask "<question>" [--words 250] [--sources 3]
+#   webx api models|pricing|caching|tools|streaming "<question>"   Anthropic docs page, exact quotes
 # Every call appends a line to ~/.local/state/melvbot/helper-usage.tsv (see dsaved).
-usage='usage: webx ask "<q>" (default: one call) | extract <url> "<q>" (exact wording) | search "<query>" (links only)'
+usage='usage: webx ask "<q>" (default: one call) | extract <url> "<q>" (exact wording) | search "<query>" (links only) | api models|pricing|caching|tools|streaming "<q>" (Claude API docs page, exact quotes)'
+base=https://platform.claude.com/docs/en
+guard='Answer only from the page text. Quote the exact lines used and end with the source URL. If the page lacks the answer, say so; never answer from memory.'
 case ${1:-} in
   -h|--help) echo "$usage"; exit 0 ;;
   search|extract|ask) ;;
+  api)
+    case ${2:-} in
+      models) url=$base/about-claude/models/overview ;;
+      pricing) url=$base/about-claude/pricing ;;
+      caching) url=$base/build-with-claude/prompt-caching ;;
+      tools) url=$base/agents-and-tools/tool-use/overview ;;
+      streaming) url=$base/build-with-claude/streaming ;;
+      *) echo "webx: unknown api topic '${2:-}'" >&2; echo "$usage" >&2; exit 2 ;;
+    esac
+    [ -n "${3:-}" ] || { echo "$usage" >&2; exit 2; }
+    set -- extract "$url" "$3. $guard"
+    ;;
   *) echo "webx: unknown mode '${1:-}'" >&2; echo "$usage" >&2; exit 2 ;;
 esac
 out=$(mktemp) || exit 1

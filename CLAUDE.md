@@ -22,7 +22,7 @@ Runtime rule files: `host/assistant/prompts/`; host helpers and hooks: `host/REA
 - Tests: key tests only, no cap: add every test a necessary behaviour needs, never an unimportant one: always prevent and remove non-key tests (prune trivial/duplicate tests on every change); every fixed bug gets a regression test. Read `container/docs/how-to/dev-setup.md` before adding or changing tests.
 
 ## Token routing (full form: `host/README.md` "Token routing"; enforced by `offload-guard`)
-- Cheapest first: non-LLM (`rg`, `sed -n`, `jq`) → MiniMax helpers over ~30 lines (`digest`, `drun`, `dverify`, `dbuild`, `webx ask`) → main-session edits ≤50 lines → `coder` (Haiku 5.5 medium) after posting the spec and getting a yes. Searches: `dexplore` first; never `fork`.
+- Cheapest first: non-LLM (`rg`, `sed -n`, `jq`) → MiniMax helpers over ~30 lines (`digest`, `dverify`, `dbuild`, `webx ask`) → main-session edits ≤50 lines → `coder` (Haiku 5.5 medium) after posting the spec and getting a yes. Searches: `dexplore` first; never `fork`.
 
 ## Cost per completed outcome (full form: README "Cost rules"; review `!` rows in `dsaved --sessions`)
 - Batch open requests and decisions into one AskUserQuestion before any change. Before executing anything (edits, `coder`, deploy, commit), always end with a yes/no AskUserQuestion "Are all prompts and decisions in?" and act only on yes; a new request after that restarts the check. Verify with `dverify` before reporting done.

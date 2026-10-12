@@ -19,7 +19,7 @@ if [[ $review == 1 ]]; then
   echo; echo "== top 5 sessions (! = review) =="; "$0" --sessions "$days" | sed -n '1,7p'
   echo; echo "== edit routing (fixup = coder within 30 min of the previous one, not a failure; sonnet/opus out = main-session model) =="; "$0" --edits "$days"
   echo; echo "== helper savings (est tokens, top callers) =="
-  "$0" "$days" | awk '$2 ~ /^(d|t|webx|digest|drun|direct)/ && $3 ~ /^[0-9]+$/ {s[$2]+=$6; n[$2]+=$3} END {for (k in s) printf "%-14s %5d calls %8d saved\n", k, n[k], s[k]}' | sort -k4 -nr | head -8
+  "$0" "$days" | awk '$2 ~ /^(d|t|webx|digest|direct)/ && $3 ~ /^[0-9]+$/ {s[$2]+=$6; n[$2]+=$3} END {for (k in s) printf "%-14s %5d calls %8d saved\n", k, n[k], s[k]}' | sort -k4 -nr | head -8
   exit 0
 fi
 log=~/.local/state/melvbot/helper-usage.tsv
@@ -54,7 +54,7 @@ helper_call_usage() {
     elif .type == "tool_result" then ["R", .tool_use_id, (.content | tostring | length)] | @tsv
     else empty end' 2>/dev/null |
   awk -F'\t' '
-    $1 == "U" { if (match($4, /(^|[|;&( ])(dverify|dbuild|ttest|tcheck|dexplore|dturns|drun|ddeploy|webx|digest)( |$)/)) {
+    $1 == "U" { if (match($4, /(^|[|;&( ])(dverify|dbuild|dexplore|dturns|ddeploy|webx|digest)( |$)/)) {
         h = substr($4, RSTART, RLENGTH); gsub(/[|;&( ]/, "", h); k = $3 "\t" h; who[$2] = k; n[k]++; cin[k] += length($4) } }
     $1 == "R" && ($2 in who) { cout[who[$2]] += $3 }
     END { for (k in n) printf "%s\t%d\t%d\t%d\n", k, n[k], cin[k]/4, cout[k]/4 }' | sort |

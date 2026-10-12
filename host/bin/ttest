@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-# Run the melvbot test suite (from anywhere); prints a digest of failures only.
-#   ttest [test files...]    (default: every test)
-case ${1:-} in -h|--help) echo 'usage: ttest [test files...]  (digest of failures; exit status of the tests)'; exit 0 ;; esac
-export DIGEST_CALLER=${DIGEST_CALLER:-ttest}
-cd "$HOME/melvbot-storage/container/ts" || exit 1
-if (( $# )); then files=("$@"); else files=(test/*.test.ts test/*/*.test.ts); fi
-exec drun "pass/fail counts; for each failing test: name, file:line, assertion message" \
-  node --import tsx --test "${files[@]}"
