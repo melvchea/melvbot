@@ -8,8 +8,6 @@ Melvbot runs as one Docker container (`melvbot-ts:latest`) on a small Linux host
 
 Required: `CLAUDE_CODE_OAUTH_TOKEN` (run `claude setup-token` on a logged-in machine), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. Optional keys (Groq, MiniMax, Kagi, Brave, Firecrawl, Bright Data, Google TTS) are described in [Environment variables](../reference/env-vars.md).
 
-Web search uses Kagi (`KAGI_SESSION_LINK`), then Brave (`BRAVE_SEARCH_API_KEY`), then Firecrawl search; page reads use Firecrawl scrape, then Bright Data Web Unlocker (`BRIGHTDATA_API_KEY`, `BRIGHTDATA_ZONE`), then an in-process fetch. All these keys go in `/etc/melvbot/melvbot.env`.
-
 Google (Docs, Sheets, Drive, Calendar, Tasks) and Outlook use OAuth files under `MELVBOT_CONFIG_DIR`.
 
 ## 2. Config

@@ -86,11 +86,7 @@ Good (complete, at most 10 words, distinct):
 
 ## Data sources
 
-Fetch all sections concurrently:
-
-1. Google Calendar: both calendars.
-2. Google Tasks: google-workspace / google_api.py.
-3. News: Script Output `news_*` JSON only. Sources: World = BBC World; Tech = The Register first, then BBC Technology, Tech in Asia, then The Verge; Singapore = CNA, Straits Times, Mothership.
+Calendar and Tasks come from Script Output (above). News comes from `news_*` only: World = BBC World; Tech = The Register, then BBC Technology, Tech in Asia, The Verge; Singapore = CNA, Straits Times, Mothership.
 
 ## Send behaviour
 

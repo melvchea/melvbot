@@ -20,10 +20,11 @@ Set in `/etc/melvbot/melvbot.env` (root-only) and injected by Docker Compose.
 | `WEB_QUOTA_BRIGHTDATA` | Bright Data calls per month before it is skipped (default `5000`). A 402 or 429 answer also skips it until month end. |
 | `WEB_QUOTA_BRAVE` | Brave limit per month (default `1000`), same as `BRAVE_MONTHLY_QUOTA`. |
 
-Monthly counts are kept in the conversation DB (`web_quota`, `brave_usage`) and shown by `doctor` and `status`. Providers are only skipped at their limit or after a 402/429; the limits are not spread across the month. Fetched pages are cached in the same DB for 1 hour by URL (`page_cache`), so a repeat `webx`/`web_fetch` of the same page skips the providers.
 | `GOOGLE_CLOUD_TTS_API_KEY` | Spoken replies. |
 | `FAMILY_CALENDAR_ID` | Family calendar (default: profile.toml `family_calendar_id`) merged into agenda and reminder listings. |
 | `MELVBOT_CONFIG_DIR` | Google/Microsoft OAuth files and state. |
 | `MELVBOT_TOML` | Path to `melvbot.toml`. |
 | `MELVBOT_PROMPTS_DIR` | Rule files (mounted from `host-cli/assistant/prompts`). |
 | `MELVBOT_WORKSPACE` | Workspace root (`/workspace`). |
+
+Monthly counts are kept in the conversation DB (`web_quota`, `brave_usage`) and shown by `doctor` and `status`. Providers are skipped only at their limit or after a 402/429, not spread across the month. Fetched pages are cached there for 1 hour by URL (`page_cache`), so a repeat `webx`/`web_fetch` skips the providers.

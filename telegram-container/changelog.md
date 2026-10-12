@@ -15,7 +15,3 @@
 - drop leftover Codex, Claude, OpenCode, and Pi dummy engine ids from tests, docs, and onboarding preview
 - remove the one-shot Codex/Claude/OpenCode/Pi engine migration and `melvbot migrate-engines`
 
-### fixes
-
-- only offer and bind Cursor sessions the warm SDK can resume, recheck picker Yes before dispatch, and tell Telegram when a prompt had to start fresh after a stale resume
-

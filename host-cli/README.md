@@ -65,5 +65,4 @@ Models by role:
 |---|---|
 | Main session | Sonnet 5.5, medium |
 | `coder` | Haiku 5.5, medium |
-| MiniMax helpers | MiniMax-M3 (no Claude tokens) |
-| Helpers (`digest`, `drun`, …) | MiniMax, Groq fallback |
+| Helpers (`digest`, `drun`, …) | MiniMax-M3, Groq fallback (no Claude tokens) |

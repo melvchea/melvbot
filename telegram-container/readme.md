@@ -19,6 +19,6 @@ Telegram bridge for a Claude agent (Claude Agent SDK, Haiku 5.5, subscription lo
 | `Dockerfile.node` | In-container Node image |
 | `docker-compose.yml` | `melvbot` service |
 | `scripts/` | Host maint / cron timer helpers |
-| `docs/` | Diátaxis docs (tutorials, how-to, reference, explanation) |
+| `docs/` | Diataxis docs (tutorials, how-to, reference, explanation) |
 
 See [architecture](docs/explanation/architecture.md).
