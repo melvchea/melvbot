@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# CI runs for HEAD plus every open GitHub alert (CodeQL, Dependabot, secret scanning); exit 1 if a run failed or any alert is open.
+#   dci [--wait]   --wait polls up to 10 min until the runs for HEAD have finished; needs `gh` auth
+case ${1:-} in -h|--help) echo 'usage: dci [--wait]  (CI runs for HEAD + all open alerts; exit 1 if red)'; exit 0 ;; esac
+repo=melvchea/melvbot
+here=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
+sha=$(git -C "$here" rev-parse HEAD) || exit 2
+fetch() { gh run list --commit "$sha" --json name,status,conclusion 2>&1; }
+runs=$(fetch)
+if [[ ${1:-} == --wait ]]; then
+  for _ in $(seq 40); do
+    jq -e 'length > 0 and all(.status == "completed")' <<<"$runs" >/dev/null 2>&1 && break
+    sleep 15; runs=$(fetch)
+  done
+fi
+bad=0
+echo "CI ${sha:0:7}"
+jq -r '.[] | "  \(.name): \(.conclusion // .status)"' <<<"$runs" 2>/dev/null || echo "  runs unavailable: $runs"
+jq -e 'length > 0 and all(.conclusion == "success")' <<<"$runs" >/dev/null 2>&1 || bad=1
+echo "CodeQL"; "$here/dalerts" | sed 's/^/  /' || bad=1
+for kind in dependabot secret-scanning; do
+  echo "$kind"
+  out=$(gh api --paginate "repos/$repo/$kind/alerts?state=open&per_page=100" --jq '.[] | "#\(.number) \(.security_advisory.severity // .secret_type) \(.dependency.package.name // "")"' 2>&1) \
+    || { echo "  unavailable: $out"; continue; }
+  [[ -z $out ]] && echo "  no open alerts" || { sed 's/^/  /' <<<"$out"; bad=1; }
+done
+exit "$bad"

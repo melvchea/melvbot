@@ -79,6 +79,18 @@
     }
   },
   "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/melvbot-storage/host-cli/libexec/post-push-ci",
+            "timeout": 660
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [

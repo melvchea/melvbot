@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# PostToolUse hook (Bash): after a `git push`, wait for CI and give Claude every open alert via `dci --wait`; silent for any other command.
+cmd=$(jq -r '.tool_input.command // ""')
+[[ $cmd =~ (^|[\;\&\|[:space:]])git[[:space:]]+push([[:space:]]|$) ]] || exit 0
+out=$("${DCI:-$(dirname "$(readlink -f "$0")")/../bin/dci}" --wait 2>&1)
+jq -n --arg c "$out" '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $c}}'
