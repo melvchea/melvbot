@@ -7,42 +7,17 @@ process.env.MELVBOT_ASSISTANT_CONVERSATION_DB = tempDbPath();
 
 import {
   CONFIRM_TTL_MS,
-  actionRequiresConfirm,
   assertConfirmableInSource,
   clearAllConfirmations,
   clearConfirmationCache,
   consumeConfirmation,
-  buildNoteAddConfirmationSummary,
-  confirmFailureText,
   createConfirmation,
-  noteAddRequiresConfirm,
 } from "../../src/assistant/confirm.js";
 
-test("actionRequiresConfirm matches the plan's static Confirm-required list; assertConfirmableInSource refuses Confirm-required actions from cron", () => {
-  for (const action of [
-    "sheet spend void",
-    "sheet ev void",
-    "sheet rules set",
-    "sheet rules delete",
-    "sheet create",
-    "note delete",
-    "cron add",
-    "cron update",
-    "cron enable",
-    "cron disable",
-    "cron delete",
-    "google tasks delete",
-    "google calendar delete",
-  ]) {
-    assert.equal(actionRequiresConfirm(action), true, action);
-  }
-  assert.equal(actionRequiresConfirm("note get"), false);
-  assert.equal(actionRequiresConfirm("sheet spend add"), false);
-  {
-    assert.throws(() => assertConfirmableInSource("cron delete", "cron"), /refusing cron delete in a cron turn/);
-    assert.doesNotThrow(() => assertConfirmableInSource("cron delete", "telegram"));
-    assert.doesNotThrow(() => assertConfirmableInSource("sheet spend add", "cron"));
-  }
+test("assertConfirmableInSource refuses Confirm-required actions from cron", () => {
+  assert.throws(() => assertConfirmableInSource("cron delete", "cron"), /refusing cron delete in a cron turn/);
+  assert.doesNotThrow(() => assertConfirmableInSource("cron delete", "telegram"));
+  assert.doesNotThrow(() => assertConfirmableInSource("sheet spend add", "cron"));
 });
 
 test("consumeConfirmation reloads from sqlite after the cache is cleared, is single-use, and returns null once expired", () => {

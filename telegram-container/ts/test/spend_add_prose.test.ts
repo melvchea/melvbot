@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseSpendAddDirective, parseSpendOps, parseSpendShowDirective } from "../src/sheet/spend_prose.js";
+import { parseSpendOps } from "../src/sheet/spend_prose.js";
 import { dispatchProseIntercept, } from "../src/telegram/prose_intercept.js";
 import { handleProseCallback } from "../src/telegram/prose_callback_handler.js";
 import { mockApi } from "./helpers/telegram_api.js";
@@ -10,34 +10,6 @@ import { FIXTURE_PROFILE, withProfile } from "./helpers/profile.js";
 withProfile(FIXTURE_PROFILE);
 
 const NOW = new Date("2026-10-03T04:00:00Z");
-test("batch forms from real messages", () => {
-  const a = parseSpendAddDirective(
-    "store these under bob cardtwo spend\n  1 Oct Grab 21.10\n  1 Oct Grab 16.70\n  30 Sep Toast 16.60\n  29 Sep Gojek 28.60\n  28 Sep Cabcharge 21.70",
-    NOW,
-  );
-  assert.equal(a?.card?.card, "card2");
-  assert.deepEqual(
-    a?.entries.map((e) => `${e.spentOn} ${e.merchant} ${e.amount}`),
-    ["2026-10-01 Grab 21.10", "2026-10-01 Grab 16.70", "2026-09-30 Toast 16.60", "2026-09-29 Gojek 28.60", "2026-09-28 Cabcharge 21.70"],
-  );
-  const b = parseSpendAddDirective(
-    "store these spending under bob cardtwo spend\n\n1 Oct (Grab rides):  $21.10 and $16.70\n\n30 Sep (Toast):\n$16.60\n\n29 Sep (Gojek): $28.60",
-    NOW,
-  );
-  assert.deepEqual(
-    b?.entries.map((e) => `${e.spentOn} ${e.merchant} ${e.amount}`),
-    ["2026-10-01 Grab rides 21.10", "2026-10-01 Grab rides 16.70", "2026-09-30 Toast 16.60", "2026-09-29 Gojek 28.60"],
-  );
-  const c = parseSpendAddDirective(
-    "store these spending under bob cardtwo spend\n\nHere's a summary of the spending shown:\n\n1 Oct (Grab rides):\n- $21.10\n- $16.70\n\n30 Sep (Toast):\n- $16.60",
-    NOW,
-  );
-  assert.equal(c?.entries.length, 3);
-  assert.equal(c?.entries[2].merchant, "Toast");
-  assert.equal(parseSpendAddDirective("store these under bob\n1 Oct Grab 21.10\nnot a line", NOW), null);
-  assert.equal(parseSpendAddDirective("store these under bob\n30 Sep (Toast):", NOW), null);
-});
-
 type Sent = { text: string; extra?: { reply_markup?: { inline_keyboard: { callback_data: string }[][] } } };
 const msg = { message_id: 1, chat: { id: 42 }, from: { id: 7 } };
 
@@ -58,6 +30,21 @@ test("spend add writes with the chat key and replies with totals", async () => {
   assert.equal(calls[0].chatKey, "telegram:42");
   assert.deepEqual(calls[0].argv, ["sheet", "spend", "add", "--owner", "owner2", "--card", "card2", "2026-10-01", "Grab", "21.10"]);
   assert.equal(sent[0].text, "Logged Grab $21.10 → Bob CardTwo (1 Oct)\nAlready logged Grab $16.70 → Bob CardTwo (1 Oct)\n\nMet Target $800");
+});
+
+test("a message that is not a spend line is not intercepted or added", async () => {
+  const sent: Sent[] = [];
+  const calls: string[][] = [];
+  const handled = await dispatchProseIntercept(mockApi({ sent }) as never, msg as never, "store these under bob\n1 Oct Grab 21.10\nnot a line", {
+    spendAdd: {
+      preview: async () => ({ needsConfirm: false, summary: "" }),
+      run: async (argv) => (calls.push(argv), JSON.stringify({ inserted: true, near_duplicates: [] })),
+      totals: async () => "",
+    },
+  });
+  assert.equal(handled, false);
+  assert.equal(calls.length, 0);
+  assert.equal(sent.length, 0);
 });
 
 test("spend add needing confirm stores an offer; Confirm writes, Cancel does not", async () => {

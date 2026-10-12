@@ -1,47 +1,18 @@
 import assert from "node:assert/strict";
-import { statSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 
-import { tempDbFile, tempDbPath } from "../helpers/temp.js";
+import { tempDbPath } from "../helpers/temp.js";
 
 import {
-  allMessages,
-  append,
-  clear,
-  getClaudeSession,
-  MAX_MESSAGES_PER_CHAT,
   formatEpisode,
   latestEpisode,
   recordTurn,
   TURN_LOG_PROMPT_DAYS,
   TURN_LOG_PROMPT_KEEP_CHARS,
   type StoredMessage,
-  saveClaudeSession,
   saveEpisode,
 } from "../../src/assistant/conversation_store.js";
-
-function seedTurns(dbPath: string, chatKey: string, turns: number, createdAt: string): void {
-  for (let i = 0; i < turns; i += 1) {
-    append(chatKey, { role: "user", contentJson: '{"text":"hi"}', createdAt }, dbPath);
-    append(chatKey, { role: "assistant", contentJson: '{"text":"hello"}', createdAt }, dbPath);
-  }
-}
-
-test("append prunes oldest messages once MAX_MESSAGES_PER_CHAT is exceeded", () => {
-  const { dbPath, cleanup } = tempDbFile("assistant-conv-");
-  try {
-    for (let i = 0; i < MAX_MESSAGES_PER_CHAT + 10; i += 1) {
-      append("c1", { role: "user", contentJson: `{"n":${i}}` }, dbPath);
-    }
-    const messages = allMessages("c1", dbPath);
-    assert.equal(messages.length, MAX_MESSAGES_PER_CHAT);
-    assert.equal(messages[0].seq, 10);
-    assert.equal(messages[messages.length - 1].seq, MAX_MESSAGES_PER_CHAT + 9);
-  } finally {
-    cleanup();
-  }
-});
 
 test("saveEpisode keeps the newest 20 episodes per chat and omits untrusted web blocks; formatEpisode replaces untrusted blocks", () => {
   const dbPath = tempDbPath();

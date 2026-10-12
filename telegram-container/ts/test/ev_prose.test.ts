@@ -24,6 +24,20 @@ test("ev add parses odometer, kWh, date and optional cost; unusable input is not
   assert.equal(parseEvAddDirective("store ev charge 31 Feb 64kWh", NOW), null);
 });
 
+test("ev add with a bad date is not written", async () => {
+  const sent: { text: string }[] = [];
+  const written: string[][] = [];
+  const api = { sendMessage: async (_c: number, text: string) => void sent.push({ text }), editMessageText: async () => null, answerCallback: async () => undefined };
+  const evAdd = {
+    preview: async () => ({ needsConfirm: false, summary: "" }),
+    run: async (argv: string[]) => (written.push(argv), JSON.stringify({ inserted: true })),
+  };
+  const handled = await dispatchProseIntercept(api as never, { message_id: 1, chat: { id: 42 }, from: { id: 7 } } as never, "store ev charge 31 Feb 64kWh", { evAdd });
+  assert.equal(handled, false);
+  assert.equal(written.length, 0);
+  assert.equal(sent.length, 0);
+});
+
 test("ev add intercept writes via the CLI; a confirm offer writes only on Confirm", async () => {
   type Sent = { text: string; extra?: { reply_markup?: { inline_keyboard: { callback_data: string }[][] } } };
   const written: string[][] = [];

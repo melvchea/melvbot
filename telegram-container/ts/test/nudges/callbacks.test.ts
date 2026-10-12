@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { EXPIRED_TEXT, handleDigestLog, handleNudgeDoneSnooze } from "../../src/nudges/callbacks.js";
-import { createDigestReceipt, shouldShowNudge } from "../../src/nudges/store.js";
+import { handleDigestLog } from "../../src/nudges/callbacks.js";
+import { createDigestReceipt } from "../../src/nudges/store.js";
 import { tempDbPath } from "../helpers/temp.js";
 
 test("digest log: pick runs sheet spend add with spentOn/merchant/amount positional, not as flags", async () => {

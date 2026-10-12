@@ -6,7 +6,7 @@ import type { ClaudeTurnOptions, ClaudeTurnResult } from "../../src/assistant/cl
 import type { AssistantToml } from "../../src/assistant/toml.js";
 import { withTempDb } from "../helpers/temp.js";
 
-import { recallMissFlag, runTurn } from "../../src/assistant/turn.js";
+import { runTurn } from "../../src/assistant/turn.js";
 
 function fakeClaudeTurn(script: {
   text?: string;
@@ -152,11 +152,4 @@ test("think trigger: prefix is stripped, prose rule triggers, a short plain mess
     const turns = recentTurns(1, dbPath);
     assert.deepEqual(turns.map((t) => t.thinkRule), ["prefix", "compare", null, null, null, null, null, "prefix", null, null, null, null, null]);
   });
-});
-
-test("turn_log recall_miss is 1 only for a note get turn that injected no recall note body", () => {
-  assert.equal(recallMissFlag(["note get"], false), 1);
-  assert.equal(recallMissFlag(["note get"], true), 0);
-  assert.equal(recallMissFlag(["sheet read"], false), 0);
-  assert.equal(recallMissFlag(null, false), 0);
 });

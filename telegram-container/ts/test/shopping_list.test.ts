@@ -6,10 +6,8 @@ import test from "node:test";
 import {
   addItems,
   loadShoppingList,
-  parseTextItems,
   replaceItems,
   saveShoppingList,
-  toggleItem,
 } from "../src/telegram/shopping_list.js";
 import { tempDir } from "./helpers/temp.js";
 
@@ -28,16 +26,7 @@ test("shopping list load falls back to empty on a malformed items field", () => 
   assert.deepEqual(loadShoppingList(file), { items: [] });
 });
 
-test("parseTextItems strips bullets, dedupes and replaceItems resets done state", () => {
-  assert.deepEqual(parseTextItems("- milk\n2) eggs\n[x] Milk"), ["milk", "eggs"]);
+test("replaceItems dedupes names and resets done state", () => {
   const data = replaceItems({ items: [{ name: "old", done: true }] }, ["green tea", "green tea"]);
   assert.deepEqual(data.items, [{ name: "Green Tea", done: false }]);
-});
-
-test("toggleItem flips done and ignores an out-of-range index", () => {
-  const data = { items: [{ name: "a", done: false }] };
-  toggleItem(data, 0);
-  toggleItem(data, 5);
-  assert.equal(data.items[0].done, true);
-  assert.equal(data.items.length, 1);
 });

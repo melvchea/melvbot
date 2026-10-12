@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { ChatMessage } from "../src/assistant/fallback.js";
-import { askMessages, extractMessages, runWebCli, type WebCliDeps } from "../src/web/cli.js";
-import { digestMessages, runDigestCli, type DigestDeps } from "../src/web/digest.js";
+import { runWebCli, type WebCliDeps } from "../src/web/cli.js";
 
 const HITS = [
   { title: "A", url: "https://a.com/1", snippet: "snippet a" },
@@ -62,19 +61,3 @@ test("extract sends the page to the cheap model and prints only the digest and s
     assert.equal(none.completions.length, 0);
   }
 });
-
-function digestHarness(over: Partial<DigestDeps> = {}) {
-  const out: string[] = [];
-  const calls: { messages: ChatMessage[]; maxTokens: number }[] = [];
-  const deps: DigestDeps = {
-    write: (text) => void out.push(text),
-    readStdin: async () => "line one\nERROR: boom at src/a.ts:12\n",
-    complete: async (messages, maxTokens) => {
-      calls.push({ messages, maxTokens });
-      return { text: "the digest", provider: "groq" };
-    },
-    topNotes: () => [{ slug: "phone-buy", title: "Phones", body: "Pixel 11 Pro is the pick." }],
-    ...over,
-  };
-  return { deps, out, calls };
-}

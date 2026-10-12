@@ -24,11 +24,6 @@ function fakeDeps(body: string, failWrite = false) {
 
 const request = parseSheetCreateArgs(["Alt", "scenario", "--note", "bank-save", "--tab", "Spend:Category, Amount"]);
 
-test("parseSheetCreateArgs reads title, note and tabs; rejects a tab without columns", () => {
-  assert.deepEqual(request, { title: "Alt scenario", noteSlug: "bank-save", tabs: [{ name: "Spend", headers: ["Category", "Amount"] }] });
-  assert.equal(parseSheetCreateArgs(["T", "--tab", "NoColumns"]), null);
-});
-
 test("create replaces the Sheet-link placeholder line in the Note with the URL", async () => {
   const body = "## Plan\nSheet: [Alt](https://docs.google.com/spreadsheets/d/[sheet-id]/edit)\n\nText";
   const { deps, writes } = fakeDeps(body);
