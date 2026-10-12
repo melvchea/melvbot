@@ -1,3 +1,4 @@
+import { recordingApi, recordInterceptExchange } from "./intercept_context.js";
 import { displayNames, vehicleName } from "../profile.js";
 import { undoLastChange } from "../memory/undo.js";
 import { tasksList, type CalendarEventJson, type TaskJson } from "../google/http.js";
@@ -100,10 +101,12 @@ export async function dispatchProseIntercept(
 ): Promise<boolean> {
   const state = { name: "" };
   const started = Date.now();
+  const replies: string[] = [];
   try {
-    const handled = await dispatchInner(api, msg, text, deps, state);
+    const handled = await dispatchInner(recordingApi(api, replies), msg, text, deps, state);
     if (handled) {
       logIntercept(state.name, text, Date.now() - started);
+      recordInterceptExchange(`telegram:${msg.chat.id}`, text, replies);
     }
     return handled;
   } catch (error) {

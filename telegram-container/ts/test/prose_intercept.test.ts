@@ -104,3 +104,14 @@ test("reminder lookup answers a matching reminder and falls through to Claude on
   assert.equal(await dispatchProseIntercept(api as never, msg as never, "when is my reminder about dentist?", deps), false);
   assert.equal(sent.length, 1);
 });
+
+test("an intercepted exchange is handed to the next Claude turn once, so follow-ups keep context", async () => {
+  const { takeInterceptContext } = await import("../src/telegram/intercept_context.js");
+  const sent: Sent[] = [];
+  const api = mockApi({ sent });
+  const other = { message_id: 2, chat: { id: 43 }, from: { id: 7 } };
+  await dispatchProseIntercept(api as never, other as never, "tasks", { listTasks: async () => [task("Pay rent", "")] });
+  assert.match(sent[0].text, /• Pay rent/);
+  assert.match(takeInterceptContext("telegram:43"), /User: tasks\nBot \(instant reply\): .*Pay rent/s);
+  assert.equal(takeInterceptContext("telegram:43"), "");
+});

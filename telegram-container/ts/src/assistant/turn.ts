@@ -25,6 +25,7 @@ import { loadAssistantToml, type AssistantToml } from "./toml.js";
 import { formatWebSearchResults, openWebResearchQuery, webSearch } from "./tools.js";
 
 import type { PendingConfirmation } from "./confirm.js";
+import { takeInterceptContext } from "../telegram/intercept_context.js";
 
 /** Recall keys already injected into each chat's current Claude session (turns resume the session, so they stay in context). */
 const injectedRecall = new Map<string, { sessionId: string; keys: Set<string> }>();
@@ -214,6 +215,10 @@ export async function runTurn(rawOptions: RunTurnOptions, deps: RunTurnDeps = {}
   if (options.untrustedImageText) {
     userText = `${userText}\n\n${wrapUntrustedImageText(options.untrustedImageText)}`;
     untrustedPrefetchApplied = true;
+  }
+  const instantReplies = takeInterceptContext(options.chatKey);
+  if (instantReplies) {
+    userText = `${instantReplies}\n\n${userText}`;
   }
   if (rulePrefetch !== null) {
     userText = `${userText}\n\n${rulePrefetch.block}`;
