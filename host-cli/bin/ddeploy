@@ -2,10 +2,13 @@
 # Typecheck, test, build and deploy melvbot, then probe the doctor.
 #   ddeploy [--dry-run] [extra-service ...]
 case ${1:-} in
-  -h|--help) echo 'usage: ddeploy [--dry-run] [extra-service ...]  (tcheck, ttest, dbuild, compose up melvbot [+services], doctor probe)'; exit 0 ;;
+  -h|--help) echo 'usage: ddeploy [--dry-run] [--no-ci] [extra-service ...]  (CI gate on HEAD, tcheck, ttest, dbuild, compose up melvbot [+services], doctor probe)'; exit 0 ;;
 esac
-dry=0
-if [[ ${1:-} == --dry-run ]]; then dry=1; shift; fi
+dry=0 noci=0
+while [[ ${1:-} == --dry-run || ${1:-} == --no-ci ]]; do
+  [[ $1 == --dry-run ]] && dry=1 || noci=1
+  shift
+done
 services=(melvbot "$@")
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../telegram-container" || { echo "ddeploy: cd failed" >&2; exit 1; }
 
@@ -27,6 +30,12 @@ rollback() { # rollback <reason>: put the previous image back, if one was saved
   fi
 }
 
+if (( dry )); then
+  echo '[dry-run] ci-gate: refuse unless the GitHub CI run of HEAD passed (--no-ci skips)'
+elif (( ! noci )); then
+  ci=$(../host-cli/libexec/ci-gate "$(git rev-parse HEAD)")
+  if [[ $ci != pass ]]; then echo "ddeploy: CI of HEAD is '$ci' (push and wait for green, or use --no-ci)" >&2; exit 1; fi
+fi
 have_prev=0
 if (( ! dry )) && docker tag melvbot-ts:latest melvbot-ts:prev 2>/dev/null; then have_prev=1; fi
 step tcheck tcheck
