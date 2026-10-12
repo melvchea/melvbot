@@ -10,6 +10,7 @@ while [[ ${1:-} == --dry-run || ${1:-} == --no-ci ]]; do
   shift
 done
 services=(melvbot "$@")
+start=$SECONDS
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../telegram-container" || { echo "ddeploy: cd failed" >&2; exit 1; }
 
 step() { # step <label> <cmd...>
@@ -33,6 +34,7 @@ rollback() { # rollback <reason>: put the previous image back, if one was saved
 if (( dry )); then
   echo '[dry-run] ci-gate: refuse unless the GitHub CI run of HEAD passed (--no-ci skips)'
 elif (( ! noci )); then
+  if [[ -n $(git status --porcelain --untracked-files=no) ]]; then echo "ddeploy: tracked files changed outside HEAD (commit and push first, or use --no-ci)" >&2; exit 1; fi
   ci=$(../host-cli/libexec/ci-gate "$(git rev-parse HEAD)")
   if [[ $ci != pass ]]; then echo "ddeploy: CI of HEAD is '$ci' (push and wait for green, or use --no-ci)" >&2; exit 1; fi
 fi
@@ -45,6 +47,7 @@ else
   step ttest ttest
 fi
 step dbuild dbuild
+(( dry )) || docker tag melvbot-ts:latest "melvbot-ts:$(git rev-parse --short HEAD)" # per-commit tag for manual rollback
 step "compose up" sudo -n docker compose up -d "${services[@]}"
 if (( dry )); then
   echo '[dry-run] wait: poll melvbot running with no restarts, up to 30s'
@@ -61,3 +64,4 @@ if (( ! ready )); then rollback "melvbot not stable after 30s"; exit 1; fi
 out=$(docker exec melvbot melvbot doctor --probe 2>&1); rc=$?
 grep -Ev '^[^:]+: (ok|skip)( |$)' <<<"$out" || echo "doctor: all checks ok"
 if (( rc != 0 )); then rollback "doctor failed (exit $rc)"; exit "$rc"; fi
+echo "ddeploy: done in $(( SECONDS - start ))s"

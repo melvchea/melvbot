@@ -6,8 +6,7 @@ on:
       - "main"
   pull_request:
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,6 +17,8 @@ jobs:
     name: telegram-container ts
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: telegram-container/ts
@@ -50,6 +51,8 @@ jobs:
     name: secret-guard
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
     env:
       GITLEAKS_VERSION: "8.28.0"
       GUARD_TERMS: ${{ secrets.GUARD_TERMS }}
@@ -78,6 +81,8 @@ jobs:
     name: workflow-lint
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -115,3 +120,39 @@ jobs:
 
       - name: Open alerts must be zero
         run: host-cli/bin/dalerts
+
+  shell-docker-lint:
+    name: shellcheck + hadolint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Shellcheck
+        run: git ls-files -z '*.sh' 'host-cli/bin/*' 'host-cli/libexec/*' | xargs -0 grep -lZ '^#!.*sh' | xargs -0 shellcheck --severity=warning
+
+      - name: Hadolint
+        run: docker run --rm -i hadolint/hadolint:v2.12.0 hadolint --failure-threshold warning - < telegram-container/Dockerfile.node
+
+  dependency-review:
+    name: dependency-review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Review
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
