@@ -1,0 +1,63 @@
+name: melvbot-stack
+
+services:
+  melvbot:
+    build:
+      context: /home/melvbot/melvbot-storage/container
+      dockerfile: Dockerfile.node
+      entitlements:
+        - network.host
+    image: melvbot-ts:latest
+    container_name: melvbot
+    restart: unless-stopped
+    stop_grace_period: 30s
+    env_file:
+      - /etc/melvbot/melvbot.env
+    environment:
+      HOME: /home/melvbot/.melvbot
+      MELVBOT_TS_ALLOW_LIVE_TOKEN: "1"
+      MELVBOT_CONFIG_DIR: /var/lib/melvbot/config
+      MELVBOT_GOOGLE_HOME: /var/lib/melvbot/config/google-home
+      MELVBOT_MICROSOFT_HOME: /var/lib/melvbot/config/microsoft-home
+      MELVBOT_WORKSPACE: /workspace
+      MELVBOT_TOML: /home/melvbot/.melvbot/melvbot.toml
+      MELVBOT_PROMPTS_DIR: /opt/melvbot-ts/prompts
+      XDG_CACHE_HOME: /home/melvbot/.melvbot/xdg-cache
+      MALLOC_ARENA_MAX: "2"
+      UV_THREADPOOL_SIZE: "2"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      ORT_INTRA_OP_NUM_THREADS: "1"
+      ORT_INTER_OP_NUM_THREADS: "1"
+    volumes:
+      - /home/melvbot/melvbot-workspace/melvbot-data/config:/var/lib/melvbot/config
+      - /home/melvbot/melvbot-workspace/melvbot-data/runtime:/home/melvbot/.melvbot
+      - /home/melvbot/melvbot-storage/container:/workspace/melvbot:ro
+      - /home/melvbot/melvbot-workspace/melvbot-data:/workspace/melvbot-data:ro
+      - /home/melvbot/melvbot-workspace/.gitignore:/workspace/.gitignore:ro
+      - /home/melvbot/melvbot-storage/host/assistant/prompts:/opt/melvbot-ts/prompts:ro
+    working_dir: /workspace
+    command:
+      - node
+      - --max-old-space-size=384
+      - /opt/melvbot-ts/dist/index.js
+    init: true
+    cpus: "1.0"
+    mem_limit: 1g
+    memswap_limit: 1g
+    oom_score_adj: -200
+    pids_limit: 512
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
+      - "apparmor=docker-default"
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+

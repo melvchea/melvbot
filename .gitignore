@@ -13,5 +13,5 @@
 /.claude/*
 !/.claude/settings.json
 */**/.claude/
-telegram-container/tests/
-telegram-container/.cache/
+container/tests/
+container/.cache/

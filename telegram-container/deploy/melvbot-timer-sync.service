@@ -1,9 +1,0 @@
-[Unit]
-Description=Reconcile Melvbot cron systemd timers from cron_jobs.db
-
-[Service]
-Type=oneshot
-ExecStart=/home/melvbot/melvbot-storage/telegram-container/scripts/install-cron-timers.py --db /home/melvbot/melvbot-workspace/melvbot-data/config/cron_jobs.db --install
-
-[Install]
-WantedBy=multi-user.target

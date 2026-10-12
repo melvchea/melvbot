@@ -1,4 +1,4 @@
 # Reviewed false positives (fake test JWT, Edge's public TrustedClientToken, a SQL row key).
-5f6efdb1bc42146ee11aced2c3e5ab0ad8326d4f:telegram-container/ts/test/digest_cli.test.ts:jwt:39
+5f6efdb1bc42146ee11aced2c3e5ab0ad8326d4f:container/ts/test/digest_cli.test.ts:jwt:39
 cbf104bc9a06b29ac97a6a3d8c798f306892a74c:ts/src/media/tts_edge.ts:generic-api-key:10
 39168a99bb9b78e5c8274c1cc35159d4479af38d:src/takopi/memory/archive.py:generic-api-key:126

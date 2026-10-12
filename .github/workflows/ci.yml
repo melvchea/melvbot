@@ -13,15 +13,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  telegram-container:
-    name: telegram-container ts
+  container:
+    name: container ts
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
     defaults:
       run:
-        working-directory: telegram-container/ts
+        working-directory: container/ts
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -33,7 +33,7 @@ jobs:
         with:
           node-version: "26"
           cache: npm
-          cache-dependency-path: telegram-container/ts/package-lock.json
+          cache-dependency-path: container/ts/package-lock.json
 
       - name: Install
         run: npm ci
@@ -64,7 +64,7 @@ jobs:
           persist-credentials: false
 
       - name: Guard (IPv4, email, private names)
-        run: host-cli/libexec/guard
+        run: host/libexec/guard
 
       - name: Gitleaks (full history)
         run: |
@@ -119,7 +119,7 @@ jobs:
           done
 
       - name: Open alerts must be zero
-        run: host-cli/bin/dalerts
+        run: host/bin/dalerts
 
   shell-docker-lint:
     name: shellcheck + hadolint
@@ -134,10 +134,10 @@ jobs:
           persist-credentials: false
 
       - name: Shellcheck
-        run: git ls-files -z '*.sh' 'host-cli/bin/*' 'host-cli/libexec/*' | xargs -0 grep -lZ '^#!.*sh' | xargs -0 shellcheck --severity=warning
+        run: git ls-files -z '*.sh' 'host/bin/*' 'host/libexec/*' | xargs -0 grep -lZ '^#!.*sh' | xargs -0 shellcheck --severity=warning
 
       - name: Hadolint
-        run: docker run --rm -i hadolint/hadolint:v2.12.0 hadolint --failure-threshold warning --ignore DL3008 - < telegram-container/Dockerfile.node
+        run: docker run --rm -i hadolint/hadolint:v2.12.0 hadolint --failure-threshold warning --ignore DL3008 - < container/Dockerfile.node
 
   dependency-review:
     name: dependency-review

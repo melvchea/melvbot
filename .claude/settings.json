@@ -70,7 +70,7 @@
       "Bash(sudo:*)",
       "Edit(CLAUDE.md)",
       "Edit(.claude/**)",
-      "Edit(host-cli/assistant/prompts/**)"
+      "Edit(host/assistant/prompts/**)"
     ]
   },
   "sandbox": {
@@ -89,7 +89,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/melvbot-storage/host-cli/libexec/post-push-ci",
+            "command": "$HOME/melvbot-storage/host/libexec/post-push-ci",
             "timeout": 660
           }
         ]

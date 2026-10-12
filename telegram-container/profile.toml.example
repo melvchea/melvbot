@@ -1,9 +1,0 @@
-# Private profile: copy to $MELVBOT_CONFIG_DIR/profile.toml (never commit the real one).
-# Fills {{key}} placeholders in host-cli/assistant/prompts/*.md at load time.
-owner1 = "Alice"
-owner2 = "Bob"
-card1 = "CardOne"
-card2 = "CardTwo"
-vehicle = "Car"
-vehicle_model = "Car Model"
-email = "you@example.com"

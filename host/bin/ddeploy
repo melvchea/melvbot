@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Typecheck, test, build and deploy melvbot, then probe the doctor.
+#   ddeploy [--dry-run] [extra-service ...]
+case ${1:-} in
+  -h|--help) echo 'usage: ddeploy [--dry-run] [--no-ci] [extra-service ...]  (CI gate on HEAD, tcheck + ttest only with --no-ci or a dirty container, dbuild, compose up melvbot [+services], doctor probe)'; exit 0 ;;
+esac
+dry=0 noci=0
+while [[ ${1:-} == --dry-run || ${1:-} == --no-ci ]]; do
+  [[ $1 == --dry-run ]] && dry=1 || noci=1
+  shift
+done
+services=(melvbot "$@")
+start=$SECONDS
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../container" || { echo "ddeploy: cd failed" >&2; exit 1; }
+
+step() { # step <label> <cmd...>
+  local label=$1; shift
+  if (( dry )); then echo "[dry-run] $label: $*"; return 0; fi
+  echo "ddeploy: $label..."
+  "$@"; local rc=$?
+  if (( rc != 0 )); then echo "ddeploy: $label failed (exit $rc)" >&2; exit "$rc"; fi
+}
+
+rollback() { # rollback <reason>: put the previous image back, if one was saved
+  echo "ddeploy: $1" >&2
+  if (( have_prev )); then
+    docker tag melvbot-ts:prev melvbot-ts:latest && sudo -n docker compose up -d --no-build melvbot \
+      && echo "ddeploy: rolled back to the previous image" >&2 || echo "ddeploy: rollback failed" >&2
+  else
+    echo "ddeploy: no previous image to roll back to" >&2
+  fi
+}
+
+if (( dry )); then
+  echo '[dry-run] ci-gate: refuse unless the GitHub CI run of HEAD passed (--no-ci skips)'
+elif (( ! noci )); then
+  if [[ -n $(git status --porcelain --untracked-files=no) ]]; then echo "ddeploy: tracked files changed outside HEAD (commit and push first, or use --no-ci)" >&2; exit 1; fi
+  ci=$(../host/libexec/ci-gate "$(git rev-parse HEAD)")
+  if [[ $ci != pass ]]; then echo "ddeploy: CI of HEAD is '$ci' (push and wait for green, or use --no-ci)" >&2; exit 1; fi
+fi
+have_prev=0
+if (( ! dry )) && docker tag melvbot-ts:latest melvbot-ts:prev 2>/dev/null; then have_prev=1; fi
+if (( ! noci )) && [[ -z $(git status --porcelain -- .) ]]; then
+  echo "ddeploy: tcheck/ttest skipped (CI of HEAD passed, container clean)"
+else
+  step tcheck tcheck
+  step ttest ttest
+fi
+step dbuild dbuild
+(( dry )) || docker tag melvbot-ts:latest "melvbot-ts:$(git rev-parse --short HEAD)" # per-commit tag for manual rollback
+step "compose up" sudo -n docker compose up -d "${services[@]}"
+if (( dry )); then
+  echo '[dry-run] wait: poll melvbot running with no restarts, up to 30s'
+  echo '[dry-run] doctor: docker exec melvbot melvbot doctor --probe (non-ok lines only), roll back to melvbot-ts:prev on failure'
+  exit 0
+fi
+ready=0
+for _ in $(seq 15); do # running and not restart-looping for 2 consecutive checks
+  read -r running restarts < <(docker inspect -f '{{.State.Running}} {{.RestartCount}}' melvbot 2>/dev/null)
+  if [[ ${running:-} == true && ${restarts:-1} == 0 ]]; then (( ++ok >= 2 )) && { ready=1; break; }; else ok=0; fi
+  sleep 2
+done
+if (( ! ready )); then rollback "melvbot not stable after 30s"; exit 1; fi
+out=$(docker exec melvbot melvbot doctor --probe 2>&1); rc=$?
+grep -Ev '^[^:]+: (ok|skip)( |$)' <<<"$out" || echo "doctor: all checks ok"
+if (( rc != 0 )); then rollback "doctor failed (exit $rc)"; exit "$rc"; fi
+echo "ddeploy: done in $(( SECONDS - start ))s"

@@ -1,0 +1,69 @@
+# host
+
+Host-side tooling for working on melvbot with Claude Code. `bin/` is on `PATH`.
+
+## Digest helpers
+All of these condense output with a cheap model (MiniMax first, Groq if MiniMax fails) inside the `melvbot` container, so raw text never enters Claude's context. Secrets, emails and phones are masked first.
+- `digest "<what to extract>"`: condense a command's output, e.g. `digest --run "docker logs melvbot" "any errors?"`. Stdin also works, but under the strict sandbox a pipe runs sandboxed, where Docker is denied, so it falls back to the raw tail. `--raw` (or `DIGEST_RAW=1`, also honoured by `drun`/`ttest`/`tcheck`/`dbuild`) skips the model and prints the last 60 lines; if MiniMax and Groq both fail, the same raw tail is printed after a "digest unavailable" note on stderr, unless `DIGEST_STRICT=1` (prints nothing, exit 3; used by `dexplore`)
+- `digest` can invent file names and tests when asked to review many files at once; for code review, read the files (`rg`/`sed -n`) instead.
+- The wrappers (`ttest`, `tcheck`, `dbuild`, `drun`) return the exit status of the command they ran, even when the digest fails. All helpers take `-h`/`--help`.
+- `dexplore [--raw] "<question>" [path]`: Explore without Claude: MiniMax picks 3-6 regexes from the file list, grep runs on the host (top 15 files, 40 KB cap), hits go through `digest`; one retry with new patterns if unanswered; exits 1 ("fall back to inline `rg`") if still not found, 3 if MiniMax and Groq are both down. `--raw` prints patterns and hits only
+- `ttest` / `tcheck`: tests / typecheck, failures only (`tcheck` runs plain tsc, no model call unless it fails)
+- `dbuild`: `docker compose build`, errors only; uses the built-in `default` buildx builder (docker driver) with `COMPOSE_BAKE=true` (override with `BUILDX_BUILDER`, `COMPOSE_BAKE`)
+- `drun "<what>" <cmd>`: any command, including container commands such as a manual cron rerun: `drun "result" docker exec melvbot melvbot cron run-once <id> --force` (posts to Telegram)
+- `ddeploy [--dry-run] [--no-ci] [service ...]`: first refuses unless `libexec/ci-gate` reports the GitHub CI run of HEAD as `pass` (`wait`/`fail` exit 1; push and wait for green, or `--no-ci` to skip), then `tcheck && ttest && dbuild`, `docker compose up -d melvbot [services]`, waits up to 30s for a stable container, then the doctor probe filtered to non-ok lines (no LLM); refuses when tracked files differ from HEAD (unless `--no-ci`), tags the built image `melvbot-ts:<short-sha>`, prints the total time, tags the running image `melvbot-ts:prev` first and rolls back to it if the container is unstable or the probe fails; stops at the first failing step ("ddeploy: <step> failed", that step's exit code)
+- `dalerts`: open GitHub code-scanning (CodeQL) alerts grouped by severity (`#n rule path:line`), exit 1 if any; no LLM. OpenSSF Scorecard alerts (weekly workflow) are listed under "scorecard (informational, not gating)" and never fail the gate. The CI job `code-scanning alerts` runs it after CodeQL finishes for the pushed commit, so any open alert turns CI (and the `ddeploy` gate) red. Per severity, ask a yes/no AskUserQuestion before fixing (CLAUDE.md).
+- CI (`.github/workflows/ci.yml`, default `permissions: {}`, `contents: read` per job): `container ts` (build, tests with coverage), `secret-guard` (guard + gitleaks), `workflow-lint` (zizmor), `shellcheck + hadolint` (warning level, hadolint ignores DL3008), `dependency-review` (PRs only, fails on high), `code-scanning alerts` (waits for CodeQL, runs `dalerts`). `weekly-scan.yml` (Sat 21:17 UTC, or `gh workflow run "Weekly scan" -R melvchea/melvbot`): Trivy fs + Dockerfile (gating alerts) and OpenSSF Scorecard (informational). Secret-scanning generic-password and validity-check options are paid, not enabled; private vulnerability reporting is a manual repo setting.
+- `dci [--wait]`: CI runs for HEAD plus all open alerts (CodeQL via `dalerts`, Dependabot, secret scanning), exit 1 if a run failed or any alert is open; `--wait` polls up to 10 min for the runs to finish. The `PostToolUse` hook `libexec/post-push-ci` (`.claude/settings.json`) runs `dci --wait` after every `git push` and hands the result to Claude; silent for other commands. No LLM
+- `ddb <cron|nudges|conversation|path> "<sql>" | .tables | .schema <t>`: read-only SQLite (SELECT/PRAGMA/WITH only), tab-separated with header; no LLM
+- `webx ask|extract|search`: web answers, single-page reads, result links (Brave search, Firecrawl search fallback; page reads via Firecrawl scrape, then Bright Data Web Unlocker, then in-process fetch; pages cached 1h by URL, so a repeat read skips the providers). Default to `ask` (3 sources, pages fetched in parallel; under 1500 chars of source text the digest model call is skipped): search, fetch and answer happen in one Claude turn instead of 3-4 for search then extract
+- `capi models|pricing|caching|tools|streaming "<q>"` / `capi ask "<q>"`: Claude API lookups (model IDs, pricing, params) read live from the Anthropic docs through `webx`, quoting the lines used plus the source URL; never answers from memory. Use instead of `/claude-api` for lookups; SDK code writing or migration still needs the skill. Calls are logged and credited as `webx:*`
+- `dverify`: `tcheck`, then `ttest` on only the test files touched by the git diff (changed tests, plus tests matching or importing changed `src` files); one line on pass, first failure on fail. `offload-guard` denies `tcheck` and targeted `ttest <files>`; bare `ttest` is the final full run
+- `dsaved --outcome [days]`: Claude Code $ per day at list prices (cache writes at the 5m rate) next to git commits that day, and $ per commit
+- `dsaved [--edits] [days]`: Claude Code tokens per day and model from the transcripts, tokens saved by helpers (default 7 days, per day and caller, % of that day's tokens; data in `~/.local/state/melvbot/helper-usage.tsv`), then Telegram SDK turns, tokens and no-LLM intercepts per day from `turn_log`; no LLM. Each webx call is credited a fixed saving vs built-in WebSearch/WebFetch (measured 2026-10-05): search 12800, extract 28000, ask 40800.
+- `dturns [days] [raw]`: digest of the turn log (`raw` prints it without the model): what the Telegram bot spent Claude quota on, grouped into intents with REGEX / CLAUDE verdicts; the last line also counts `intercept:<name>` hits (instant features used). Ends with a plain-number "Search & fetch" section parsed from `docker logs` of melvbot (web_search per-route count and p50/p95 ms, web_fetch backend p50/p95 and in-process fallback rate); logs rotate (10 MB x 3), so long periods may be truncated
+- `dsaved --review [days]`: one scorecard (default 7 days) = `--outcome` + top 5 `--sessions` + `--edits` + net helper savings per caller; run it first on any cost/optimisation request and act on rising $/commit, `!` sessions, or a helper with calls but no savings; no LLM
+- `dsaved --sessions [days]`: top 20 Claude Code sessions (subagents folded into their parent) by est $ at list prices, with start, assistant msgs and input / cache write / cache read / output, plus commits made during the session (UTC start..last msg; overlapping sessions both count a commit) and $/commit; long sessions show up as huge cache-read totals.
+
+## Token routing (full form of CLAUDE.md "Token routing")
+- Tier 0 non-LLM: `rg`, `head`/`tail`, `jq`, `sed -n`, `git diff --stat`.
+- Tier 1 MiniMax for reading/output over ~30 lines: `digest`, `drun`, `dverify`, `dbuild`. Web: `webx ask` (one turn); `extract` for exact wording, `search` for link lists; if the container is down, say so.
+- Tier 2 main session edits fully specified changes directly, ≤50 lines per edit; no full-file Write, smallest unique Edit anchor.
+- Tier 3 `coder` (Haiku 5.5 medium) for bigger or judgment-heavy work: post the spec, ask "are all requests and decisions in?", launch only after a yes. Pays off only above ~5k saved Opus output tokens or lots of file reading. Spec = goal, file:line ranges, verify command. Soft cap 99,990 tokens per coder run, so split an outcome into small tasks (one file or one concern, est. under ~40K tokens each) and launch one coder per task; run coders in parallel only on independent work with disjoint files (never parallel edits to the same file; parallel costs more tokens). Reuse a warm coder via SendMessage while under 99,990 tokens, else start a fresh one.
+- Searches: `dexplore` first; if it exits 1 or for dependent multi-step searches, use inline `rg`/`sed -n`. Plan inline. Only `coder` is enabled; never `fork`.
+- Edit routing is logged; `dsaved --edits` decides whether to bring back a Haiku tier. `dsaved --sessions` marks `!` sessions (over $1.5/commit or no commit). Weekly review: `digest --run "dsaved --review 7" "trends, ! sessions: cause and fix"`.
+- Input: `rg`/`sed -n`/`offset`+`limit`, no whole files or re-reads; long output via `tail`/`digest`; batch independent calls. Docker, git push, dbuild, ddeploy, drun run as standalone Bash calls (`git -C`, absolute paths, `env X=… cmd`).
+
+## Cost rules (full form of CLAUDE.md "Cost per completed outcome")
+- Per MTok: Opus in $4, out $20, cache write $5 (5m) / $8 (1h), read $0.20; Sonnet in $2, out $10, write $2.50 / $4, read $0.10; Telegram bot Haiku 5.5 in $0.10, out $0.50, write $0.125 / $0.20, read $0.01 (5× above 100K-token prompts, so where possible keep Haiku 5.5 usage below 100K tokens); helpers ~0 Claude tokens (MiniMax prepaid annual plan to 2027-04-28, ~0 marginal cost; re-compare with Haiku 5.5 at renewal).
+- Redos cost most, so asking first and verifying before reporting done beats saving a call.
+- Execution gate: before any edit, `coder` launch, deploy or commit, ask a yes/no AskUserQuestion "Are all prompts and decisions in?" (batched with any open decisions) and proceed only on yes; a later request reopens the gate. Read-only lookups need no gate.
+- Output costs 5× input: also no restating plans, specs or tool results, no narration between tool calls; batch edits into one turn, verify once after.
+- Cache writes: the MCP set also stays unchanged mid-session; auto-compact at 40%; subagents start cold, use only per Token routing.
+- Helpers: never re-run one to re-read output already in context. Bash calls stay standalone (no `cd …;`/`export …;`) so sandbox excludedCommands match.
+- Cache reads are cheapest per token but long sessions re-read the whole context every turn (see `dsaved --sessions`); reuse warm context (same coder via SendMessage) over cold starts, but `/clear` once an outcome is done.
+- Before re-reviewing Telegram memory, recall or prompt-cache cost, read "Reviewed, no action" in `container/docs/how-to/performance.md` (memory healthy, 1h cache TTL rejected).
+- Auto-loaded md (CLAUDE.md, MEMORY.md, `coder.md`) sits in every prefix: one line per rule, no duplicates or examples; details go in on-demand docs (`host/README.md`, `container/docs/`), found with `rg`.
+- coder spec: goal, exact file:line ranges, verify command; no pasted files or history. Batch related changes into one launch; don't edit `coder.md` or CLAUDE.md while it runs.
+
+## Claude Code wiring (`~/.claude/settings.json`, not in the repo)
+- `bin/offload-guard` (PreToolUse on Read|Bash|Agent|Task|Edit|Write|NotebookEdit) denies:
+  - Reads of text files over 200 lines unless ranged (`limit` ≤200)
+  - unfiltered `docker logs`, full diffs, raw test/tsc/build runs, `cat` of big files
+  - main-session repo Edits over 50 lines (`MAX_EDIT`), Write/NotebookEdit of existing files or over 50 lines, shell writes into the repo
+  - `fork` subagents, and `model` overrides other than haiku (`coder` runs Haiku 5.5 medium through its own agent file)
+
+  A command piped through `digest`/`head`/`grep` etc. or run through a helper passes. Append `# raw-ok` to skip the guard when `digest` is unavailable (container down, or both providers down).
+- Agents (`~/.claude/agents/`): `coder` (Haiku 5.5 medium, code needing judgment or changes over 50 lines); `Explore`, `Plan`, `general-purpose`, `claude`, `statusline-setup` and `claude-code-guide` are denied in `.claude/settings.json` so they stay out of the prompt; `coder` is launched only after the user confirms all requests and decisions are in (see CLAUDE.md). The main session edits repo files directly up to 50 lines per Edit (new files up to 50 lines); the guard logs each decision and coder launch to `~/.local/state/melvbot/edit-route.tsv`, and `dsaved --edits [days]` compares them per day with Sonnet/Opus output tokens. `effortLevel: medium`; other subagents default to Haiku (`CLAUDE_CODE_SUBAGENT_MODEL`). Input-token settings (`~/.claude/settings.json`): `MAX_THINKING_TOKENS=0`, `BASH_MAX_OUTPUT_LENGTH=5000`, `autoCompactEnabled` with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=40`, `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`, claude.ai MCP servers off; cost rules are in CLAUDE.md ("Cost per completed outcome"; the coder's own limits are in `claude/agents/coder.md`).
+- `bin/big-output-nudge` (PostToolUse on Bash) flags output over 4000 bytes; `BASH_MAX_OUTPUT_LENGTH=5000` truncates anything bigger.
+- `bin/context-alert` (Stop): shows `⚠️ Context at N%` once per session when the main agent's context passes 10%, then each further 5% (window `CTX_ALERT_WINDOW`, default 1M).
+- `bin/statusline`: model + effort letter (L/M/H/XH/X), context %, Pro 5-hour and 7-day windows as `time left of window, unused %` (e.g. `4.2h/5h 97%l 4.1d/7d 87%l`; context is `2%u`); `Sonnet ` is shortened to `Snn`.
+- Custom agents must say `model: haiku` or omit `model`.
+
+Models by role:
+
+| Role | Model |
+|---|---|
+| Main session | Sonnet 5.5, medium |
+| `coder` | Haiku 5.5, medium |
+| Helpers (`digest`, `drun`, …) | MiniMax-M3, Groq fallback (no Claude tokens) |

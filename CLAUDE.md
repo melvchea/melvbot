@@ -1,10 +1,10 @@
 # melvbot
 
-Telegram personal assistant. TypeScript daemon in `telegram-container/ts`, run as the `melvbot` Docker container.
+Telegram personal assistant. TypeScript daemon in `container/ts`, run as the `melvbot` Docker container.
 Agent = Claude Agent SDK, Haiku 5.5 (effort low by default; effort medium per turn on `think:` or complex-prose triggers), Claude subscription login only (no API key; shares the Pro quota with the host CLI).
 Routing per message: non-LLM `,commands` and prose intercepts (`src/telegram/prose_intercept.ts`) → Claude (Haiku). Media: images (vision, OCR) and video → MiniMax-M3; voice and audio files → Groq Whisper STT. Every turn after the intercepts is logged with its prompt in `turn_log` (`melvbot turns`, host `dturns` for the weekly review).
 
-Runtime rule files: `host-cli/assistant/prompts/`; host helpers and hooks: `host-cli/README.md`.
+Runtime rule files: `host/assistant/prompts/`; host helpers and hooks: `host/README.md`.
 
 ## Commands
 - Verify per change `dverify` (tcheck + touched tests; guard denies tcheck / targeted ttest); full suite bare `ttest`; build `dbuild`
@@ -18,16 +18,16 @@ Runtime rule files: `host-cli/assistant/prompts/`; host helpers and hooks: `host
 - Commit straight to `main` and push when asked; end commits with the Co-Authored-By line. The repo is public and `main` blocks force-pushes: subjects are 2-3 generic words ("Update scripts", "Update docs", "Fix bug"), never naming a tool, file or feature.
 - Cursor was removed entirely; don't reintroduce it.
 - Code-rendered bot messages (cron reports, reminders) align with Daily Maintenance: first line `Title Ddd D Mon HH:MM` (Asia/Singapore, 24h, e.g. `Weekly Reminder Sat 10 Oct 07:00`), no `for`/dashes, then a blank line, then the body.
-- Reminders/alerts: follow "Keep every reminder aligned" in `host-cli/assistant/prompts/reminders.md` (one home per item, Telegram only, code-rendered fixed lists, no new jobs in taken time slots).
-- Tests: key tests only, no cap: add every test a necessary behaviour needs, never an unimportant one: always prevent and remove non-key tests (prune trivial/duplicate tests on every change); every fixed bug gets a regression test. Read `telegram-container/docs/how-to/dev-setup.md` before adding or changing tests.
+- Reminders/alerts: follow "Keep every reminder aligned" in `host/assistant/prompts/reminders.md` (one home per item, Telegram only, code-rendered fixed lists, no new jobs in taken time slots).
+- Tests: key tests only, no cap: add every test a necessary behaviour needs, never an unimportant one: always prevent and remove non-key tests (prune trivial/duplicate tests on every change); every fixed bug gets a regression test. Read `container/docs/how-to/dev-setup.md` before adding or changing tests.
 
-## Token routing (full form: `host-cli/README.md` "Token routing"; enforced by `offload-guard`)
+## Token routing (full form: `host/README.md` "Token routing"; enforced by `offload-guard`)
 - Cheapest first: non-LLM (`rg`, `sed -n`, `jq`) → MiniMax helpers over ~30 lines (`digest`, `drun`, `dverify`, `dbuild`, `webx ask`) → main-session edits ≤50 lines → `coder` (Haiku 5.5 medium) after posting the spec and getting a yes. Searches: `dexplore` first; never `fork`.
 
 ## Cost per completed outcome (full form: README "Cost rules"; review `!` rows in `dsaved --sessions`)
 - Batch open requests and decisions into one AskUserQuestion before any change. Before executing anything (edits, `coder`, deploy, commit), always end with a yes/no AskUserQuestion "Are all prompts and decisions in?" and act only on yes; a new request after that restarts the check. Verify (`dverify`, `ttest` once at end unless `ddeploy` follows) before reporting done.
 - Every question to the user (commit/push, deploy, proceed, blockers, "how to go ahead", fact checks, `!` commands, each P0/P1/P2 item) is a yes/no AskUserQuestion, never prose or bullets. That includes anything unverified or blocked by the sandbox (no GitHub access, no systemd bus, a leftover timer, a file delete or symlink the sandbox refuses): never write "run this in your terminal" or "you can ignore X" in the summary; ask "Run `! cmd` yourself?" or "Re-check from the host?" as a yes/no AskUserQuestion, never a "you'll need to…" note in the summary. Call it before the summary; the final message ends with a statement, never a question, and that includes offers like "Do you want me to…", "Should I…" or "tell me if you want…" (e.g. commit/push after a change): put them in an AskUserQuestion instead.
-- Commands for the user to paste (Termius wraps lines): every line under 50 chars including the `! ` prefix, break with `\` outside quotes, build long values from short `X=...` vars, no quote or `|` spanning a break; else write a script and give a one-line call. Applies everywhere I show a command, AskUserQuestion included. Always give the suggested command in a fenced block (never inline in prose or a table), pre-broken into lines <50 chars; count before sending, final summaries too. Path `~/melvbot-storage/telegram-container/...` is too long: `cd` into it or set `D=...` first.
+- Commands for the user to paste (Termius wraps lines): every line under 50 chars including the `! ` prefix, break with `\` outside quotes, build long values from short `X=...` vars, no quote or `|` spanning a break; else write a script and give a one-line call. Applies everywhere I show a command, AskUserQuestion included. Always give the suggested command in a fenced block (never inline in prose or a table), pre-broken into lines <50 chars; count before sending, final summaries too. Path `~/melvbot-storage/container/...` is too long: `cd` into it or set `D=...` first.
 - Writing files (code, docs, memory notes and `MEMORY.md`, scripts): always the Edit tool first (Write for new files), never Bash redirects or heredocs, and never ask the user to run a `!` command for it; the sandbox blocks shell writes that Edit allows. Fall back to a `!` command only if Edit is denied.
 - Change `.claude/settings.json` (allow/deny, hooks, env) with the Edit tool; the built-in "Do you want to make this edit to settings.json?" prompt is the yes/no, so no extra AskUserQuestion. Never use Bash to write it; if the Edit is denied, report it.
 - Where possible, keep Haiku 5.5 usage (bot turns, `coder`) below 99,990 tokens per run (soft cap; price is 5× above): split work into small coder tasks (one file or one concern, est. under ~40K each), one coder per task; reuse a coder via SendMessage only while under budget.

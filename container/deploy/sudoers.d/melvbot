@@ -1,0 +1,7 @@
+# Passwordless sudo allowlist for melvbot (guardrail for the host Claude CLI, not a root boundary:
+# the docker group is root-equivalent). Anything else: `su -c '...'` with the root password.
+# Install: sudo visudo -cf <this> && sudo install -m440 -o root -g root <this> /etc/sudoers.d/melvbot
+Cmnd_Alias MELV_COMPOSE = /home/melvbot/.local/bin/melvbot-compose, /home/melvbot/melvbot-storage/container/scripts/melvbot-compose, /usr/bin/docker compose *
+Cmnd_Alias MELV_STATUS = /usr/sbin/sysctl, /usr/sbin/ufw status, /usr/sbin/ufw status *, /usr/sbin/sshd -T, /usr/bin/systemctl status *, /usr/bin/systemctl list-timers *, /usr/bin/systemctl is-active *, /usr/bin/systemctl start melvbot-daily-maint.service, /usr/bin/journalctl *, /usr/bin/du *
+Defaults:melvbot env_keep += "DOCKER_CONFIG"
+melvbot ALL=(root) NOPASSWD: MELV_COMPOSE, MELV_STATUS

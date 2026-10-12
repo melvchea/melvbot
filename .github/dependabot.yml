@@ -1,7 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: /telegram-container/ts
+    directory: /container/ts
     ignore:
       - dependency-name: "@anthropic-ai/claude-agent-sdk" # bumped nightly by the 3am maintenance
     schedule:
@@ -12,7 +12,7 @@ updates:
       npm-minor-patch:
         update-types: ["minor", "patch"]
   - package-ecosystem: docker
-    directory: /telegram-container
+    directory: /container
     schedule:
       interval: weekly
     cooldown:

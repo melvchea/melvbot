@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-# docker compose build for melvbot; prints a digest (errors / final status).
-# usage: dbuild [docker compose build args]  (digest of errors; exit status of the build)
-case ${1:-} in -h|--help) echo "usage: dbuild [docker compose build args]"; exit 0 ;; esac
-export DIGEST_CALLER=${DIGEST_CALLER:-dbuild}
-export COMPOSE_BAKE="${COMPOSE_BAKE:-true}"
-cd "$HOME/melvbot-storage/telegram-container" || exit 1
-exec drun "build result; on failure the failing step and exact error" docker compose build "$@"
