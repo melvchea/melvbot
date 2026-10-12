@@ -17,7 +17,7 @@ days=${1:-7}
 if [[ $review == 1 ]]; then
   echo "== \$ per commit =="; "$0" --outcome "$days"
   echo; echo "== top 5 sessions (! = review) =="; "$0" --sessions "$days" | sed -n '1,7p'
-  echo; echo "== edit routing =="; "$0" --edits "$days"
+  echo; echo "== edit routing (fixup = coder within 30 min of the previous one, not a failure; sonnet/opus out = main-session model) =="; "$0" --edits "$days"
   echo; echo "== helper savings (est tokens, top callers) =="
   "$0" "$days" | awk '$2 ~ /^(d|t|webx|digest|drun|direct)/ && $3 ~ /^[0-9]+$/ {s[$2]+=$6; n[$2]+=$3} END {for (k in s) printf "%-14s %5d calls %8d saved\n", k, n[k], s[k]}' | sort -k4 -nr | head -8
   exit 0
