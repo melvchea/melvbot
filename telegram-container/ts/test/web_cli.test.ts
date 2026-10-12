@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import type { ChatMessage } from "../src/assistant/fallback.js";
 import { runWebCli, type WebCliDeps } from "../src/web/cli.js";
+import { runDigestCli } from "../src/web/digest.js";
 
 const HITS = [
   { title: "A", url: "https://a.com/1", snippet: "snippet a" },
@@ -60,4 +61,18 @@ test("extract sends the page to the cheap model and prints only the digest and s
     assert.equal(none.out[0], "No readable sources found.\n");
     assert.equal(none.completions.length, 0);
   }
+});
+
+test("digest allows enough output tokens for number-heavy tables (no mid-line cut-off)", async () => {
+  const caps: number[] = [];
+  const code = await runDigestCli(["totals per caller", "--words", "120"], {
+    readStdin: async () => "row 1\nrow 2",
+    complete: async (_messages, maxTokens) => {
+      caps.push(maxTokens);
+      return { text: "ok", provider: "groq" };
+    },
+    write: () => undefined,
+  });
+  assert.equal(code, 0);
+  assert.ok(caps[0] >= 120 * 4, `cap ${caps[0]} is too small for 120 words of table text`);
 });

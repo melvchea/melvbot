@@ -2,7 +2,7 @@
 # Typecheck, test, build and deploy melvbot, then probe the doctor.
 #   ddeploy [--dry-run] [extra-service ...]
 case ${1:-} in
-  -h|--help) echo 'usage: ddeploy [--dry-run] [--no-ci] [extra-service ...]  (CI gate on HEAD, tcheck, ttest, dbuild, compose up melvbot [+services], doctor probe)'; exit 0 ;;
+  -h|--help) echo 'usage: ddeploy [--dry-run] [--no-ci] [extra-service ...]  (CI gate on HEAD, tcheck + ttest only with --no-ci or a dirty telegram-container, dbuild, compose up melvbot [+services], doctor probe)'; exit 0 ;;
 esac
 dry=0 noci=0
 while [[ ${1:-} == --dry-run || ${1:-} == --no-ci ]]; do
@@ -38,8 +38,12 @@ elif (( ! noci )); then
 fi
 have_prev=0
 if (( ! dry )) && docker tag melvbot-ts:latest melvbot-ts:prev 2>/dev/null; then have_prev=1; fi
-step tcheck tcheck
-step ttest ttest
+if (( ! noci )) && [[ -z $(git status --porcelain -- .) ]]; then
+  echo "ddeploy: tcheck/ttest skipped (CI of HEAD passed, telegram-container clean)"
+else
+  step tcheck tcheck
+  step ttest ttest
+fi
 step dbuild dbuild
 step "compose up" sudo -n docker compose up -d "${services[@]}"
 if (( dry )); then
