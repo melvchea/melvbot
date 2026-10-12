@@ -4,7 +4,7 @@
 /.gitconfig
 /.gitmodules
 /.idea
-/.mcp.json
+.mcp.json
 /.profile
 /.ripgreprc
 /.vscode
