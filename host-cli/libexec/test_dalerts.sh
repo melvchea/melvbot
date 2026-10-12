@@ -14,6 +14,12 @@ got="$(DALERTS_JSON="[${B},${A}]" "${SCRIPT}")" || rc=$?
 want=$'high (1)\n  #1 js/redos a.ts:4\nmedium (1)\n  #2 js/x b.ts:9'
 [ "${got}" = "${want}" ] || { printf 'FAIL: grouping/order:\n%s\n' "${got}" >&2; exit 1; }
 
+S='{"number":3,"tool":{"name":"Scorecard"},"rule":{"id":"BranchProtectionID","severity":"error"},"most_recent_instance":{"location":{"path":"x","start_line":1}}}'
+rc=0
+got="$(DALERTS_JSON="[${S}]" "${SCRIPT}")" || rc=$?
+[ "${rc}" = 0 ] || { echo "FAIL: scorecard-only alerts must not gate, got ${rc}" >&2; exit 1; }
+case "${got}" in *"scorecard (informational"*"#3 BranchProtectionID"*) ;; *) echo "FAIL: scorecard not listed: ${got}" >&2; exit 1 ;; esac
+
 rc=0
 DALERTS_JSON='not json' "${SCRIPT}" >/dev/null 2>&1 || rc=$?
 [ "${rc}" = 2 ] || { echo "FAIL: bad response must exit 2, got ${rc}" >&2; exit 1; }
