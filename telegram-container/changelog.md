@@ -4,6 +4,7 @@
 
 ### changes
 
+- `Dockerfile.node` has a `HEALTHCHECK` (`melvbot doctor` every 5 min); CI gained shellcheck, hadolint and dependency-review jobs plus a weekly Trivy and Scorecard workflow; `ddeploy` refuses a dirty tracked tree, tags `melvbot-ts:<sha>` and prints its run time
 - web pages are cached 1h by normalised URL in the conversation DB (`page_cache`) and in memory; `webFetch`, `webx extract|ask` and the Telegram web_fetch tool share it; errors and empty pages are not cached
 - monthly call counters for Firecrawl and Bright Data (`web_quota`), limits `WEB_QUOTA_FIRECRAWL` (500) and `WEB_QUOTA_BRIGHTDATA` (5000), `WEB_QUOTA_BRAVE` (1000); a provider is skipped only at its limit or after a 402/429 until month end; counts shown in `doctor` and `status`
 - `webx ask` skips the digest model call when the fetched sources total under 1500 chars and prints them directly
