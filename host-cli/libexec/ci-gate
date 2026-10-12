@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Print pass | wait | fail for the CI run of a commit on the public repo (used by dautodeploy).
+#   ci-gate <sha>      reads the GitHub runs API (no token); CI_GATE_JSON overrides the response (tests)
+# wait = no run yet, still running, or the API is unreachable; fail = the run finished red.
+repo=melvchea/melvbot
+json=${CI_GATE_JSON:-$(curl -fsS --max-time 15 "https://api.github.com/repos/$repo/actions/runs?head_sha=${1:?sha}&per_page=20" 2>/dev/null)} || { echo wait; exit 0; }
+jq -r '[.workflow_runs[]? | select(.name == "CI")] | sort_by(.created_at) | last
+  | if . == null or .status != "completed" then "wait" elif .conclusion == "success" then "pass" else "fail" end' <<<"$json" 2>/dev/null || echo wait
