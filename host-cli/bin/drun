@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Run a command and show only a cheap-model digest of its output (exit status preserved).
+#   drun "failing tests + first error" npm test
+# DIGEST_RAW=1 prints the raw tail instead of a digest.
+set -u -o pipefail
+case ${1:-} in -h|--help) echo 'usage: drun "<what to extract>" <command> [args...]'; exit 0 ;; esac
+export DIGEST_CALLER=${DIGEST_CALLER:-drun}
+[[ $# -ge 2 ]] || { echo 'usage: drun "<what to extract>" <command> [args...]' >&2; exit 2; }
+instruction=$1; shift
+tmp=$(mktemp) || exit 1
+trap 'rm -f "$tmp"' EXIT
+"$@" >"$tmp" 2>&1; status=$?
+if [[ ! -s $tmp ]]; then
+  echo "(no output, exit $status)"
+else
+  digest "$instruction (command: $*; exit $status)" <"$tmp" || true
+fi
+exit "$status"

@@ -1,0 +1,10 @@
+[Unit]
+Description=Sample host RAM every 5 minutes for Melvbot maint report
+
+[Timer]
+OnCalendar=*-*-* *:00/5:00 Asia/Singapore
+Persistent=true
+Unit=melvbot-mem-sample.service
+
+[Install]
+WantedBy=timers.target

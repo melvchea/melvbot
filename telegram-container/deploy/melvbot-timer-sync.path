@@ -1,0 +1,13 @@
+[Unit]
+Description=Reinstall Melvbot cron timers when cron_jobs.db changes
+
+# journal_mode=delete (confirmed 2026-09-12): writes update the main file
+# mtime, so PathModified on cron_jobs.db is sufficient. Do not name this
+# melvbot-cron-* — installer orphan cleanup owns that prefix.
+
+[Path]
+PathModified=/home/melvbot/melvbot-workspace/melvbot-data/config/cron_jobs.db
+Unit=melvbot-timer-sync.service
+
+[Install]
+WantedBy=multi-user.target

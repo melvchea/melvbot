@@ -1,0 +1,12 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /telegram-container/ts
+    ignore:
+      - dependency-name: "@anthropic-ai/claude-agent-sdk" # bumped nightly by the 3am maintenance
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

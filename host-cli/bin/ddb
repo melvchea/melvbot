@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Read-only SQLite helper for melvbot data.
+#   ddb <db> "<select ...>"   ddb <db> .tables   ddb <db> .schema <table>
+# <db>: cron, nudges, conversation, or a path under the melvbot-data dir.
+DATA=/home/melvbot/melvbot-workspace/melvbot-data
+case ${1:-} in -h|--help|"") echo 'usage: ddb <cron|nudges|conversation|path> "<SELECT|PRAGMA|WITH sql>" | .tables | .schema <table>'; exit 0 ;; esac
+exec python3 - "$DATA" "$@" <<'PY'
+import os, sqlite3, sys
+data, name, *rest = sys.argv[1:]
+short = {"cron": "config/cron_jobs.db", "nudges": "config/nudges.sqlite3",
+         "conversation": "runtime/assistant_conversation.sqlite3"}
+rel = short.get(name, name)
+path = os.path.realpath(rel if os.path.isabs(rel) else os.path.join(data, rel))
+if not path.startswith(os.path.realpath(data) + os.sep) or not os.path.isfile(path):
+    sys.exit(f"ddb: unknown db or path outside {data}: {name}")
+arg = " ".join(rest).strip()
+if arg == ".tables":
+    sql, params = "select name from sqlite_master where type in ('table','view') order by name", ()
+elif arg.startswith(".schema"):
+    t = arg[7:].strip()
+    sql, params = ("select sql from sqlite_master where name=? and sql is not null", (t,)) if t else \
+        ("select sql from sqlite_master where sql is not null", ())
+elif arg.split(None, 1)[:1] and arg.split(None, 1)[0].lower() in ("select", "pragma", "with"):
+    if ";" in arg.rstrip(";"):
+        sys.exit("ddb: single statement only")
+    sql, params = arg, ()
+else:
+    sys.exit("ddb: refused; only SELECT, PRAGMA, WITH, .tables, .schema are allowed")
+con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+try:
+    cur = con.execute(sql, params)
+    if cur.description:
+        print("\t".join(d[0] for d in cur.description))
+    for row in cur:
+        print("\t".join("" if v is None else str(v).replace("\t", " ").replace("\n", "\\n") for v in row))
+except sqlite3.Error as e:
+    sys.exit(f"ddb: {e}")
+PY

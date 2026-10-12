@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Review what the Telegram bot spent Claude quota on, to find requests worth a non-LLM intercept.
+#   dturns            last 7 days
+#   dturns 30         last 30 days
+#   dturns 7 raw      print the turn log instead of a digest
+case ${1:-} in -h|--help) echo 'usage: dturns [days] [raw]'; exit 0 ;; esac
+export DIGEST_CALLER=${DIGEST_CALLER:-dturns}
+days=${1:-7}
+log=$(docker exec melvbot melvbot turns "$days") || exit 1
+if [[ ${2:-} == raw || ${2:-} == --raw ]]; then printf '%s\n' "$log"; exit 0; fi
+printf '%s\n' "$log" | tail -1
+printf '%s\n' "$log" | grep -P '\tclaude\t' | digest --words 300 "Lines are Telegram messages that needed Claude (time, route, status, timing, tools, prompt; timing is <ms>ms ttft=<ms to first text> spawn=<ms to first SDK message, 0 = reused process> rt=<API round trips> ctx=<context tokens>, - when not measured). Group them into recurring intents with counts, most frequent first. For each intent: 2 example phrasings, the tools used, typical ms and rt, and a verdict: REGEX (deterministic parser) or CLAUDE (needs the model)."
+
+# Search & fetch: plain numbers from the container logs (no LLM). docker logs only reach back as far
+# as log rotation allows (10 MB x 3 files per container), so long periods may be truncated.
+echo
+echo "== Search & fetch (last ${days}d, from docker logs; rotation may truncate) =="
+python3 - "$days" <<'PY'
+import re, subprocess, sys
+days = sys.argv[1]
+def logs(name):
+    r = subprocess.run(["docker", "logs", "--since", f"{int(days) * 24}h", name], capture_output=True, text=True)
+    return (r.stdout + r.stderr).splitlines()
+def pct(xs, p):
+    xs = sorted(xs)
+    return xs[min(len(xs) - 1, int(len(xs) * p))] if xs else 0
+def stat(label, xs):
+    print(f"  {label:<22} n={len(xs):<5} p50={pct(xs, .5)}ms p95={pct(xs, .95)}ms")
+def rate(n, d):
+    return f"{n}/{d} ({100 * n / d:.0f}%)" if d else "n/a"
+mel = logs("melvbot")
+routes = {}
+for l in mel:
+    m = re.search(r"web_search: route=(\w+) .*?ms=(\d+)", l)
+    if m:
+        routes.setdefault(m[1], []).append(int(m[2]))
+print("web_search by route (melvbot):")
+for r, xs in sorted(routes.items()):
+    stat(r, xs)
+backend, infb = [], 0
+for l in mel:
+    m = re.search(r"web_fetch: backend=(\S+) ms=(\d+)", l)
+    if m:
+        backend.append(int(m[2]))
+    infb += "; trying next" in l
+print("web_fetch:")
+stat("web_fetch (any backend)", backend)
+print(f"  in-process fallback rate: {rate(infb, len(backend) + infb)}")
+PY

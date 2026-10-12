@@ -1,0 +1,356 @@
+#!/usr/bin/env python3
+"""Host helper for Docker bridge egress (80/443 tcp).
+
+Deployment source only. Install as root-owned /usr/local/sbin/melvbot-docker-egress.
+Do not execute this workspace copy from a systemd unit.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import shlex
+import subprocess
+import sys
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+
+CHAIN = "DOCKER-USER"
+COMMENT = "melvbot-docker-egress"
+FILTER_TABLE = "filter"
+HTTP_PORT = "80"
+HTTPS_PORT = "443"
+BRIDGE_IFACES = ("docker0", "br+")
+EGRESS_TCP_PORTS = (HTTPS_PORT, HTTP_PORT)
+WAIT_FLAG = "-w"
+RESTORE_NOFLUSH = "--noflush"
+MISSING_CHAIN_NEEDLE = "No chain/target/match"
+IP6_KERNEL_INCOMPATIBLE_NEEDLE = "Incompatible with this kernel"
+
+DEFAULT_IPTABLES = "/usr/sbin/iptables"
+DEFAULT_IPTABLES_RESTORE = "/usr/sbin/iptables-restore"
+DEFAULT_IP6TABLES = "/usr/sbin/ip6tables"
+DEFAULT_IP6TABLES_RESTORE = "/usr/sbin/ip6tables-restore"
+
+ENV_IPTABLES = "MELVBOT_DOCKER_EGRESS_IPTABLES"
+ENV_IPTABLES_RESTORE = "MELVBOT_DOCKER_EGRESS_IPTABLES_RESTORE"
+ENV_IP6TABLES = "MELVBOT_DOCKER_EGRESS_IP6TABLES"
+ENV_IP6TABLES_RESTORE = "MELVBOT_DOCKER_EGRESS_IP6TABLES_RESTORE"
+
+FOREIGN_ERROR = f"{CHAIN} has foreign or mixed rules; refusing to change"
+MISSING_V4_ERROR = f"IPv4 {CHAIN} chain is missing"
+
+
+class HelperError(Exception):
+    """User-facing helper failure."""
+
+
+@dataclass(frozen=True, slots=True)
+class Tools:
+    iptables: str
+    iptables_restore: str
+    ip6tables: str
+    ip6tables_restore: str
+
+
+@dataclass(frozen=True, slots=True)
+class ParsedRule:
+    iface: str | None
+    proto: str | None
+    dport: str | None
+    ctstate: str | None
+    comment: str | None
+    jump: str | None
+
+
+def tools_from_env(environ: Mapping[str, str] | None = None) -> Tools:
+    env = os.environ if environ is None else environ
+    return Tools(
+        iptables=env.get(ENV_IPTABLES, DEFAULT_IPTABLES),
+        iptables_restore=env.get(ENV_IPTABLES_RESTORE, DEFAULT_IPTABLES_RESTORE),
+        ip6tables=env.get(ENV_IP6TABLES, DEFAULT_IP6TABLES),
+        ip6tables_restore=env.get(ENV_IP6TABLES_RESTORE, DEFAULT_IP6TABLES_RESTORE),
+    )
+
+
+def _split_cmd(command: str) -> list[str]:
+    parts = shlex.split(command)
+    if not parts:
+        raise HelperError("command override is empty")
+    return parts
+
+
+def managed_append_lines() -> tuple[str, ...]:
+    rules = [
+        f"-A {CHAIN} -m conntrack --ctstate RELATED,ESTABLISHED "
+        f"-m comment --comment {COMMENT} -j ACCEPT",
+    ]
+    for iface in BRIDGE_IFACES:
+        rules.extend(
+            f"-A {CHAIN} -i {iface} -p tcp --dport {port} "
+            f"-m comment --comment {COMMENT} -j ACCEPT"
+            for port in EGRESS_TCP_PORTS
+        )
+        rules.append(f"-A {CHAIN} -i {iface} -m comment --comment {COMMENT} -j DROP")
+    return tuple(rules)
+
+
+def restore_payload(append_lines: Sequence[str]) -> str:
+    lines = [f"*{FILTER_TABLE}", f":{CHAIN} -", *append_lines, "COMMIT"]
+    return "\n".join(lines) + "\n"
+
+
+def apply_restore_payload() -> str:
+    return restore_payload(managed_append_lines())
+
+
+def flush_restore_payload() -> str:
+    return restore_payload(())
+
+
+def parse_append_rule(line: str) -> ParsedRule | None:
+    try:
+        tokens = shlex.split(line)
+    except ValueError:
+        return None
+    if len(tokens) < 2 or tokens[0] != "-A" or tokens[1] != CHAIN:
+        return None
+    iface: str | None = None
+    proto: str | None = None
+    dport: str | None = None
+    ctstate: str | None = None
+    comment: str | None = None
+    jump: str | None = None
+    index = 2
+    while index < len(tokens):
+        token = tokens[index]
+        if token == "-i" and index + 1 < len(tokens):
+            iface = tokens[index + 1]
+            index += 2
+            continue
+        if token == "-p" and index + 1 < len(tokens):
+            proto = tokens[index + 1]
+            index += 2
+            continue
+        if token == "--dport" and index + 1 < len(tokens):
+            dport = tokens[index + 1]
+            index += 2
+            continue
+        if token == "--ctstate" and index + 1 < len(tokens):
+            ctstate = tokens[index + 1]
+            index += 2
+            continue
+        if token == "--comment" and index + 1 < len(tokens):
+            comment = tokens[index + 1]
+            index += 2
+            continue
+        if token == "-j" and index + 1 < len(tokens):
+            jump = tokens[index + 1]
+            index += 2
+            continue
+        if token == "-m" and index + 1 < len(tokens):
+            index += 2
+            continue
+        return None
+    return ParsedRule(
+        iface=iface,
+        proto=proto,
+        dport=dport,
+        ctstate=ctstate,
+        comment=comment,
+        jump=jump,
+    )
+
+
+def managed_parsed_rules() -> tuple[ParsedRule, ...]:
+    parsed = tuple(parse_append_rule(line) for line in managed_append_lines())
+    if any(item is None for item in parsed):
+        raise HelperError("internal managed rule failed to parse")
+    return tuple(item for item in parsed if item is not None)
+
+
+def extract_append_lines(s_output: str) -> list[str]:
+    appends: list[str] = []
+    for raw in s_output.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or line.startswith("-N "):
+            continue
+        if line.startswith("-A "):
+            appends.append(line)
+            continue
+        raise HelperError(f"unexpected iptables -S line: {line}")
+    return appends
+
+
+def classify_append_lines(appends: list[str]) -> str:
+    if not appends:
+        return "empty"
+    parsed: list[ParsedRule] = []
+    for line in appends:
+        rule = parse_append_rule(line)
+        if rule is None or rule.comment != COMMENT:
+            return "foreign"
+        parsed.append(rule)
+    if tuple(parsed) == managed_parsed_rules():
+        return "managed"
+    return "foreign"
+
+
+def run_s(command: str) -> subprocess.CompletedProcess[str]:
+    argv = [*_split_cmd(command), WAIT_FLAG, "-S", CHAIN]
+    try:
+        return subprocess.run(
+            argv,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:
+        raise HelperError(f"failed to execute {command}") from exc
+
+
+def chain_missing(completed: subprocess.CompletedProcess[str]) -> bool:
+    if completed.returncode == 0:
+        return False
+    detail = f"{completed.stderr}{completed.stdout}"
+    return MISSING_CHAIN_NEEDLE.lower() in detail.lower()
+
+
+def _s_failed(completed: subprocess.CompletedProcess[str], binary: str) -> HelperError:
+    detail = (completed.stderr or completed.stdout or "").strip()
+    msg = f"{binary} -S {CHAIN} failed"
+    return HelperError(f"{msg}: {detail}" if detail else msg)
+
+
+def list_ipv4_appends(tools: Tools) -> list[str]:
+    completed = run_s(tools.iptables)
+    if chain_missing(completed):
+        raise HelperError(MISSING_V4_ERROR)
+    if completed.returncode != 0:
+        raise _s_failed(completed, "iptables")
+    return extract_append_lines(completed.stdout)
+
+
+def list_ipv6_appends(tools: Tools) -> list[str] | None:
+    try:
+        completed = run_s(tools.ip6tables)
+    except HelperError:
+        return None
+    if chain_missing(completed):
+        return None
+    if completed.returncode != 0:
+        detail = f"{completed.stderr}{completed.stdout}"
+        if IP6_KERNEL_INCOMPATIBLE_NEEDLE.lower() in detail.lower():
+            return None
+        raise _s_failed(completed, "ip6tables")
+    return extract_append_lines(completed.stdout)
+
+
+def restore_argv(restore_command: str) -> list[str]:
+    return [*_split_cmd(restore_command), WAIT_FLAG, RESTORE_NOFLUSH]
+
+
+def run_restore(restore_command: str, payload: str) -> None:
+    argv = restore_argv(restore_command)
+    try:
+        completed = subprocess.run(
+            argv,
+            check=False,
+            capture_output=True,
+            text=True,
+            input=payload,
+        )
+    except OSError as exc:
+        raise HelperError(f"failed to execute {restore_command}") from exc
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or "").strip()
+        raise HelperError(
+            f"{restore_command} failed: {detail}"
+            if detail
+            else f"{restore_command} failed"
+        )
+
+
+def require_empty_or_managed(appends: list[str]) -> str:
+    state = classify_append_lines(appends)
+    if state == "foreign":
+        raise HelperError(FOREIGN_ERROR)
+    return state
+
+
+def inspect_families(tools: Tools) -> tuple[list[str], list[str] | None]:
+    ipv4 = list_ipv4_appends(tools)
+    ipv6 = list_ipv6_appends(tools)
+    require_empty_or_managed(ipv4)
+    if ipv6 is not None:
+        require_empty_or_managed(ipv6)
+    return ipv4, ipv6
+
+
+def cmd_apply(tools: Tools) -> int:
+    _ipv4, ipv6 = inspect_families(tools)
+    payload = apply_restore_payload()
+    run_restore(tools.iptables_restore, payload)
+    if ipv6 is not None:
+        run_restore(tools.ip6tables_restore, payload)
+    return 0
+
+
+def cmd_flush(tools: Tools) -> int:
+    ipv4, ipv6 = inspect_families(tools)
+    payload = flush_restore_payload()
+    if classify_append_lines(ipv4) == "managed":
+        run_restore(tools.iptables_restore, payload)
+    if ipv6 is not None and classify_append_lines(ipv6) == "managed":
+        run_restore(tools.ip6tables_restore, payload)
+    return 0
+
+
+def cmd_show(tools: Tools) -> int:
+    completed = run_s(tools.iptables)
+    if chain_missing(completed):
+        raise HelperError(MISSING_V4_ERROR)
+    if completed.returncode != 0:
+        raise _s_failed(completed, "iptables")
+    sys.stdout.write(completed.stdout)
+    if completed.stdout and not completed.stdout.endswith("\n"):
+        sys.stdout.write("\n")
+    try:
+        completed6 = run_s(tools.ip6tables)
+    except HelperError:
+        return 0
+    if chain_missing(completed6) or completed6.returncode != 0:
+        return 0
+    sys.stdout.write(completed6.stdout)
+    if completed6.stdout and not completed6.stdout.endswith("\n"):
+        sys.stdout.write("\n")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="melvbot-docker-egress")
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("apply")
+    sub.add_parser("flush")
+    sub.add_parser("show")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    tools = tools_from_env()
+    try:
+        if args.command == "apply":
+            return cmd_apply(tools)
+        if args.command == "flush":
+            return cmd_flush(tools)
+        if args.command == "show":
+            return cmd_show(tools)
+        raise HelperError("unknown command")
+    except HelperError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

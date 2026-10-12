@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Verify the current change in one call: tcheck, then only the tests touched by the git diff (incl. untracked files).
+#   dverify          one line on pass; first failure digest on fail
+case ${1:-} in -h|--help) echo 'usage: dverify  (tcheck, then ttest on changed test files plus tests matching or importing changed src files; "dverify: ok" on pass, exit status of the failing step)'; exit 0 ;; esac
+ts=$HOME/melvbot-storage/telegram-container/ts
+cd "$ts" || exit 1
+tc=$(tcheck 2>&1); rc=$?
+(( rc )) && { echo "dverify: tcheck failed"; echo "$tc"; exit "$rc"; }
+changed=$({ git diff --name-only HEAD --relative; git ls-files --others --exclude-standard; } | sort -u)
+declare -A tests=()
+while IFS= read -r f; do
+  [[ -f $f ]] || continue
+  case $f in
+    test/*.test.ts) tests[$f]=1 ;;
+    src/*.ts)
+      base=$(basename "$f" .ts)
+      while IFS= read -r t; do tests[$t]=1; done < <(
+        { ls test/"$base"*.test.ts test/*/"$base"*.test.ts 2>/dev/null
+          rg -l --glob '*.test.ts' "from ['\"][^'\"]*/${base}(\\.js)?['\"]" test 2>/dev/null; } | sort -u) ;;
+  esac
+done <<<"$changed"
+if (( ${#tests[@]} == 0 )); then echo "dverify: tcheck clean; no touched tests (run ttest for the full suite)"; exit 0; fi
+out=$(ttest "${!tests[@]}" 2>&1); rc=$?
+(( rc )) && { echo "dverify: ttest failed (${#tests[@]} files)"; echo "$out"; exit "$rc"; }
+echo "dverify: ok (tcheck clean, ${#tests[@]} test files pass: ${!tests[*]})"

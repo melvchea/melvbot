@@ -1,0 +1,17 @@
+# Empty placeholders created by the Claude Code sandbox
+/.bash_profile
+/.bashrc
+/.gitconfig
+/.gitmodules
+/.idea
+/.mcp.json
+/.profile
+/.ripgreprc
+/.vscode
+/.zprofile
+/.zshrc
+/.claude/*
+!/.claude/settings.json
+*/**/.claude/
+telegram-container/tests/
+telegram-container/.cache/

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Claude Code status line: model + effort letter, context %, and Pro plan usage (5-hour window as time left:unused %, 7-day as days left:unused %).
+# rate_limits only appears after the session's first API response, and each window can be missing.
+input=$(cat)
+IFS=$'\x1f' read -r m e ctx h5 h5r d7 d7r < <(jq -r '[
+  .model.display_name // "", .effort.level // "", .context_window.used_percentage // "",
+  .rate_limits.five_hour.used_percentage // "", .rate_limits.five_hour.resets_at // "",
+  .rate_limits.seven_day.used_percentage // "", .rate_limits.seven_day.resets_at // ""] | join("\u001f")' <<<"$input")
+
+# Green under 40%, yellow under 70%, red from 70%.
+pct() {
+  local n c=32
+  n=$(printf '%.0f' "$2")
+  (( n >= 40 )) && c=33
+  (( n >= 70 )) && c=31
+  # $3 = "l" shows the share left (unused) instead of used; suffix u/l marks which.
+  local k=u; [[ $3 == l ]] && { n=$(( 100 - n )); k=l; }
+  printf ' \033[%sm%s%s%%%s\033[00m' "$c" "${1:+$1 }" "$n" "$k"
+}
+
+# Effort as one letter: low L, medium M, high H, xhigh XH, max X.
+case $e in xhigh) e=XH ;; max) e=X ;; ?*) e=${e:0:1}; e=${e^^} ;; esac
+m=${m/Sonnet /Snn}
+[[ -n $m ]] && printf '\033[36m%s%s\033[00m' "$m" "$e"
+[[ -n $ctx ]] && pct "" "$ctx"
+# Hours left of the 5-hour window (one decimal), then the unused share.
+h5_label=5h
+if [[ -n $h5r ]]; then
+  s=$(( h5r - $(date +%s) )); (( s < 0 )) && s=0
+  h5_label=$(awk -v s="$s" 'BEGIN{printf "%.1fh/5h", s/3600}')
+fi
+[[ -n $h5 ]] && pct "$h5_label" "$h5" l
+# Days left of the 7-day window.
+d7_label=7d
+if [[ -n $d7r ]]; then
+  s=$(( d7r - $(date +%s) )); (( s < 0 )) && s=0
+  d7_label=$(awk -v s="$s" 'BEGIN{printf "%.1fd/7d", s/86400}')
+fi
+[[ -n $d7 ]] && pct "$d7_label" "$d7" l
+printf ' '
+exit 0

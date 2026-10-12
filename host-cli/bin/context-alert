@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Stop hook: alert once per session each time main-agent context passes another CTX_ALERT_STEP tokens (default 10k).
+# Fails open: any error here must not block the session.
+in=$(cat)
+tp=$(jq -r '.transcript_path // empty' <<<"$in"); sid=$(jq -r '.session_id // "x"' <<<"$in")
+[ -f "$tp" ] || exit 0
+WINDOW=${CTX_ALERT_WINDOW:-1000000}
+used=$(tac "$tp" | jq -rc 'select(.isSidechain != true) | .message.usage // empty
+  | (.input_tokens + (.cache_read_input_tokens // 0) + (.cache_creation_input_tokens // 0))' 2>/dev/null | head -1)
+[ -n "$used" ] || exit 0
+STEP=${CTX_ALERT_STEP:-10000}
+pct=$(( used * 100 / WINDOW ))
+state=/tmp/claude-ctx-alert-$sid
+last=$(cat "$state" 2>/dev/null || echo 0)
+t=$(( used / STEP * STEP ))
+if [ "$t" -ge "$STEP" ] && [ "$t" -gt "$last" ]; then
+  echo "$t" > "$state"
+  printf '{"systemMessage":"⚠️ Context at %sk tokens (%s%%): consider /clear"}\n' "$((used/1000))" "$pct"
+fi
+exit 0

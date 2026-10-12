@@ -1,0 +1,7 @@
+[Unit]
+Description=Melvbot 3am maintenance failure alert
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/melvbot/melvbot.env
+ExecStart=/bin/sh -c '[ -f /home/melvbot/melvbot-workspace/melvbot-data/config/state/maint-alert-sent ] && exit 0; curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" -d "chat_id=${TELEGRAM_CHAT_ID}" -d "text=🛠️ Daily Maintenance 3am FAILED (script crash — see /var/log/melvbot-daily-maint.log)"'

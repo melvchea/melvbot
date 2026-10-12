@@ -1,0 +1,103 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ddeploy:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(docker exec melvbot *)",
+      "Bash(docker compose:*)",
+      "Bash(docker restart:*)",
+      "Agent(coder)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(~/.env*)",
+      "Edit(**/.env*)",
+      "Bash(env)",
+      "Bash(env *)",
+      "Bash(printenv*)",
+      "Bash(export -p*)",
+      "Bash(docker exec melvbot env*)",
+      "Bash(docker exec melvbot printenv*)",
+      "Bash(docker inspect*)",
+      "Bash(docker compose config*)",
+      "WebFetch",
+      "WebSearch",
+      "Agent(Plan)",
+      "Agent(Explore)",
+      "Agent(general-purpose)",
+      "Agent(claude)",
+      "Agent(statusline-setup)",
+      "Agent(claude-code-guide)",
+      "Skill(dataviz)",
+      "Skill(plugin-authoring)",
+      "Skill(keybindings-help)",
+      "Skill(schedule)",
+      "Skill(loop)",
+      "Skill(run)",
+      "Skill(init)",
+      "Skill(claude-api)",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "RemoteTrigger",
+      "EnterWorktree",
+      "ExitWorktree",
+      "NotebookEdit",
+      "EnterPlanMode",
+      "ExitPlanMode",
+      "ReportFindings",
+      "ScheduleWakeup",
+      "ListAgents"
+    ],
+    "ask": [
+      "Bash(rm:*)",
+      "Bash(rmdir:*)",
+      "Bash(unlink:*)",
+      "Bash(git rm:*)",
+      "Bash(git clean:*)",
+      "Bash(find * -delete*)",
+      "Bash(git commit * --amend*)",
+      "Bash(git commit --amend*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)",
+      "Bash(sudo:*)",
+      "Edit(CLAUDE.md)",
+      "Edit(.claude/**)",
+      "Edit(host-cli/assistant/prompts/**)"
+    ]
+  },
+  "sandbox": {
+    "autoAllowBashIfSandboxed": true,
+    "filesystem": {
+      "denyRead": ["**/.env", "**/.env.*", "~/.env*"]
+    }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "docker start buildx_buildkit_melvbot-builder0 >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$(pgrep -xa claude | grep -vc ' daemon ')\" -gt 1 ] || docker stop buildx_buildkit_melvbot-builder0 >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ]
+  }
+}

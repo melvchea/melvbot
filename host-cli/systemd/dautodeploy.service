@@ -1,0 +1,8 @@
+[Unit]
+Description=melvbot auto-deploy of origin/main
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/melvbot-storage/host-cli/bin/dautodeploy
+TimeoutStartSec=30min

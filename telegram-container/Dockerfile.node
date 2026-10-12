@@ -1,0 +1,46 @@
+# syntax=docker/dockerfile:1
+
+ARG NODE_VERSION=26-bookworm-slim
+
+FROM node:${NODE_VERSION} AS deps
+
+WORKDIR /opt/melvbot-ts
+COPY ts/package.json ts/package-lock.json ./
+RUN --network=host --mount=type=cache,target=/root/.npm,sharing=locked \
+    npm ci --omit=dev --prefer-offline && mkdir -p node_modules
+
+FROM node:${NODE_VERSION} AS builder
+
+WORKDIR /opt/melvbot-ts
+COPY ts/package.json ts/package-lock.json ./
+RUN --network=host --mount=type=cache,target=/root/.npm,sharing=locked \
+    npm ci --prefer-offline && { npx --no-install tsc --version || npm ci --prefer-online; }
+COPY ts/tsconfig.json ./
+COPY ts/src ./src
+RUN npm run build
+
+FROM node:${NODE_VERSION} AS runtime
+
+RUN --network=host \
+    --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates && \
+    if id -u melvbot >/dev/null 2>&1; then :; \
+    elif id -u 1000 >/dev/null 2>&1; then \
+      usermod -l melvbot -d /home/melvbot -m "$(id -nu 1000)" && \
+      groupmod -n melvbot "$(id -ng 1000)" 2>/dev/null || true; \
+    else useradd -u 1000 -m -d /home/melvbot melvbot; \
+    fi
+
+WORKDIR /opt/melvbot-ts
+COPY --link --from=deps --chown=1000:1000 /opt/melvbot-ts/node_modules /opt/melvbot-ts/node_modules
+COPY --link --from=builder --chown=1000:1000 /opt/melvbot-ts/dist /opt/melvbot-ts/dist
+COPY --link --from=builder --chown=1000:1000 /opt/melvbot-ts/package.json /opt/melvbot-ts/package.json
+COPY --link --chmod=0755 docker/melvbot-wrapper.sh /usr/local/bin/melvbot
+
+USER melvbot
+ENV NODE_ENV=production
+
+CMD ["node", "/opt/melvbot-ts/dist/index.js"]

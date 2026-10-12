@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+# Estimated tokens saved by the LLM helpers (digest wrappers, webx), from ~/.local/state/melvbot/helper-usage.tsv.
+#   dsaved [days]            Claude Code token usage per day and model (transcripts), helper report (default 7 days) with per-day saved %, then Telegram SDK turns (turn_log); no LLM
+#   dsaved --outcome [days]  Claude Code $ per day (list prices, cache writes at 5m rate) and git commits that day = $ per completed outcome; redos = fix/revert-subject commits re-touching a file changed <24h earlier
+#   dsaved --sessions [days] Claude Code per session (incl. subagents): start, msgs, input / cache write / cache read / output, est $ at list prices, commits during the session (UTC start..last msg), $/commit; top 20 by $
+#   dsaved --edits [days]    code-edit routing per day (edit-route.tsv: Opus direct edits, denials, coder launches) next to Sonnet/Opus output tokens
+case ${1:-} in -h|--help) echo 'usage: dsaved [--edits|--outcome|--sessions] [days]  (--sessions: Claude Code per session start, msgs, tokens, est $, top 20 by $;--outcome: Claude Code $ per day at list prices / git commits that day = $ per commit;default: Claude Code CLI per day and model input / cache write / cache read / output tokens from transcripts, then helper report per day and caller: calls, raw KB, out KB, est tokens saved = (raw-out)/4, webx a fixed per-call credit (search 12800, extract 28000, ask 40800), then saved % of that day'"'"'s Claude tokens, then Telegram SDK Claude turns, input / output tokens and no-LLM intercepts per day from turn_log; --edits: per day Opus direct edits (count, lines), denied edits, coder launches from edit-route.tsv, plus Sonnet and Opus output tokens)'; exit 0 ;; esac
+edits=0 outcome=0 sessions=0 review=0
+if [[ ${1:-} == --review ]]; then review=1; shift; fi
+if [[ ${1:-} == --sessions ]]; then sessions=1; shift; fi
+if [[ ${1:-} == --edits ]]; then edits=1; shift; fi
+if [[ ${1:-} == --outcome ]]; then outcome=1; shift; fi
+days=${1:-7}
+[[ $days =~ ^[0-9]+$ ]] || { echo "dsaved: days must be a number" >&2; exit 2; }
+if [[ $review == 1 ]]; then
+  echo "== \$ per commit =="; "$0" --outcome "$days"
+  echo; echo "== top 5 sessions (! = review) =="; "$0" --sessions "$days" | sed -n '1,7p'
+  echo; echo "== edit routing =="; "$0" --edits "$days"
+  echo; echo "== helper savings (est tokens, top callers) =="
+  "$0" "$days" | awk '$2 ~ /^(d|t|webx|digest|drun|direct)/ && $3 ~ /^[0-9]+$/ {s[$2]+=$6; n[$2]+=$3} END {for (k in s) printf "%-14s %5d calls %8d saved\n", k, n[k], s[k]}' | sort -k4 -nr | head -8
+  exit 0
+fi
+log=~/.local/state/melvbot/helper-usage.tsv
+since=$(date -d "$days days ago" +%F)
+
+# Claude tokens spent calling each helper (transcripts): Bash command text Claude wrote + tool result it read, bytes/4, per day.
+helper_call_usage() {
+  local dir=~/.claude/projects/-home-melvbot-melvbot-storage
+  [[ -d $dir ]] || return 0
+  echo; echo "Claude tokens calling helpers (transcripts, bytes/4)"
+  find "$dir" -name '*.jsonl' -print0 2>/dev/null | xargs -0 -r jq -r --arg since "$since" '
+    select((.timestamp // "") >= $since and (.message.content | type) == "array") | .timestamp[0:10] as $d | .message.content[] |
+    if .type == "tool_use" and .name == "Bash" then ["U", .id, $d, (.input.command // "")] | @tsv
+    elif .type == "tool_result" then ["R", .tool_use_id, (.content | tostring | length)] | @tsv
+    else empty end' 2>/dev/null |
+  awk -F'\t' '
+    $1 == "U" { if (match($4, /(^|[|;&( ])(dverify|dbuild|ttest|tcheck|dexplore|dturns|drun|ddeploy|webx|digest)( |$)/)) {
+        h = substr($4, RSTART, RLENGTH); gsub(/[|;&( ]/, "", h); k = $3 "\t" h; who[$2] = k; n[k]++; cin[k] += length($4) } }
+    $1 == "R" && ($2 in who) { cout[who[$2]] += $3 }
+    END { for (k in n) printf "%s\t%d\t%d\t%d\n", k, n[k], cin[k]/4, cout[k]/4 }' | sort |
+  awk -F'\t' 'BEGIN { printf "%-11s %-14s %6s %9s %10s %9s\n", "day", "helper", "calls", "call tok", "result tok", "total" }
+    { printf "%-11s %-14s %6d %9d %10d %9d\n", $1, $2, $3, $4, $5, $4 + $5 }'
+}
+
+# Per day and model: day, model, input, cache write, cache read, output (deduped by message id, max per field).
+claude_usage() {
+  local dir=~/.claude/projects/-home-melvbot-melvbot-storage
+  [[ -d $dir ]] || return 0
+  find "$dir" -name '*.jsonl' -print0 2>/dev/null | xargs -0 -r jq -r --arg since "$since" '
+    select(.type == "assistant" and .message.usage != null and .message.id != null and (.timestamp // "") != "")
+    | [.message.id, .timestamp[0:10], (.message.model // "?"),
+       (.message.usage.input_tokens // 0), (.message.usage.cache_creation_input_tokens // 0),
+       (.message.usage.cache_read_input_tokens // 0), (.message.usage.output_tokens // 0)] | @tsv' 2>/dev/null |
+  awk -F'\t' -v since="$since" '
+    $2 >= since {
+      id = $1
+      day[id] = $2; model[id] = $3
+      for (i = 4; i <= 7; i++) if ($i + 0 > v[id, i]) v[id, i] = $i + 0
+    }
+    END {
+      for (id in day) {
+        m = model[id]; sub(/^claude-/, "", m); sub(/-[0-9]{8}$/, "", m)
+        k = day[id] "\t" m
+        for (i = 4; i <= 7; i++) t[k, i] += v[id, i]
+        keys[k] = 1; n[k]++
+      }
+      for (k in keys) printf "%s\t%d\t%d\t%d\t%d\t%d\n", k, t[k, 4], t[k, 5], t[k, 6], t[k, 7], n[k]
+    }' | sort
+}
+
+# Per session (subagent transcripts carry the parent sessionId): tokens and est $ at list prices, top 20 by $.
+session_usage() {
+  local dir=~/.claude/projects/-home-melvbot-melvbot-storage
+  [[ -d $dir ]] || return 0
+  echo 'Claude Code sessions (top 20 by est $; ! = over $1.5/commit or no commit, review first)'
+  find "$dir" -name '*.jsonl' -print0 2>/dev/null | xargs -0 -r jq -r '
+    select(.type == "assistant" and .message.usage != null and .message.id != null and (.timestamp // "") != "")
+    | [.message.id, (.sessionId // "?"), .timestamp[0:16], (.message.model // "?"),
+       (.message.usage.input_tokens // 0), (.message.usage.cache_creation_input_tokens // 0),
+       (.message.usage.cache_read_input_tokens // 0), (.message.usage.output_tokens // 0)] | @tsv' 2>/dev/null |
+  awk -F'\t' -v since="$since" '
+    function h(n) { return n >= 1e6 ? sprintf("%.2fM", n / 1e6) : sprintf("%.1fk", n / 1e3) }
+    substr($3, 1, 10) >= since {
+      id = $1; sid[id] = $2; mdl[id] = $4
+      if (!(id in ts) || $3 < ts[id]) ts[id] = $3
+      for (i = 5; i <= 8; i++) if ($i + 0 > v[id, i]) v[id, i] = $i + 0
+    }
+    END {
+      for (id in sid) {
+        m = mdl[id]
+        if (m ~ /opus/) { pi = 4; pw = 5; pr = 0.2; po = 20 } else if (m ~ /sonnet/) { pi = 2; pw = 2.5; pr = 0.1; po = 10 } else if (m ~ /haiku-5/) { pi = 0.1; pw = 0.125; pr = 0.01; po = 0.5 } else { pi = 1; pw = 1.25; pr = 0.1; po = 5 }
+        k = sid[id]
+        if (!(k in st) || ts[id] < st[k]) st[k] = ts[id]
+        if (ts[id] > en[k]) en[k] = ts[id]
+        n[k]++; for (i = 5; i <= 8; i++) t[k, i] += v[id, i]
+        usd[k] += (v[id, 5] * pi + v[id, 6] * pw + v[id, 7] * pr + v[id, 8] * po) / 1e6
+      }
+      for (k in n) printf "%.2f\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\n", usd[k], st[k], substr(k, 1, 8), n[k], h(t[k, 5]), h(t[k, 6]), h(t[k, 7]), h(t[k, 8]), en[k]
+    }' | sort -t$'\t' -k1,1 -gr | head -20 |
+  awk -F'\t' -v commits="$(TZ=UTC git -C "$HOME/melvbot-storage" log --since="$since" --date=format-local:%Y-%m-%dT%H:%M --format=%ad | tr '\n' ' ')" '
+    BEGIN { nc = split(commits, c, " ")
+      printf "%-16s %-8s %5s %9s %9s %9s %9s %8s %7s %8s\n", "start", "session", "msgs", "input", "cache wr", "cache rd", "output", "est $", "commits", "$/commit" }
+    { k = 0; for (i = 1; i <= nc; i++) if (c[i] >= $2 && c[i] <= $9) k++
+      printf "%-16s %-8s %5d %9s %9s %9s %9s %8.2f %7d %8s%s\n", $2, $3, $4, $5, $6, $7, $8, $1, k, k ? sprintf("%.2f", $1 / k) : "-", (!k || $1 / k > 1.5) ? " !" : "" }'
+}
+
+# Telegram bot (Agent SDK) turns per day from turn_log; non-claude routes are intercepts (no LLM).
+sdk_usage() {
+  echo; echo "Telegram SDK (turn_log)"
+  ddb conversation "SELECT substr(created_at,1,10), route, count(*), sum(input_tokens), sum(output_tokens) FROM turn_log WHERE created_at >= '$since' GROUP BY 1,2" 2>/dev/null |
+  awk -F'\t' 'NR > 1 { d[$1] = 1; if ($2 == "claude") { t[$1] = $3; i[$1] = $4; o[$1] = $5 } else n[$1] += $3 }
+    END {
+      printf "%-11s %7s %10s %9s %11s\n", "day", "turns", "input", "output", "intercepts"
+      for (k in d) printf "%-11s %7d %9.1fk %8.1fk %11d\n", k, t[k], i[k] / 1e3, o[k] / 1e3, n[k] | "sort"
+    }'
+}
+
+cli_usage() {
+  echo "Claude Code CLI (transcripts)"
+  claude_usage | awk -F'\t' '
+    function h(n) { return n >= 1e6 ? sprintf("%.2fM", n / 1e6) : sprintf("%.1fk", n / 1e3) }
+    BEGIN { printf "%-11s %-14s %9s %9s %9s %9s\n", "day", "model", "input", "cache wr", "cache rd", "output" }
+    { printf "%-11s %-14s %9s %9s %9s %9s\n", $1, $2, h($3), h($4), h($5), h($6) }'
+  echo
+}
+
+if (( sessions )); then session_usage; exit 0; fi
+
+if (( outcome )); then
+  {
+    git -C "$HOME/melvbot-storage" log --since="$since" --format='C%x09%as'
+    # redo = fix/revert-style subject touching a file another commit touched in the previous 24h
+    git -C "$HOME/melvbot-storage" log --reverse --since="$since" --format='H%x09%as%x09%ct%x09%s' --name-only |
+      awk -F'\t' '
+        function done() { if (hd != "" && hit) print "R\t" hd }
+        $1 == "H" { done(); hd = $2; t = $3; hit = 0; fx = tolower($4) ~ /(^|[^a-z])(fix|fixes|fixed|revert|regression|again|broke|broken|restore)([^a-z]|$)/; next }
+        NF { if (fx && ($0 in last) && t - last[$0] < 86400) hit = 1; last[$0] = t }
+        END { done() }'
+    claude_usage | awk -F'\t' '{ print "T\t" $0 }'
+  } | awk -F'\t' '
+    $1 == "C" { c[$2]++; d[$2] = 1; next }
+    $1 == "R" { r[$2]++; next }
+    {
+      day = $2; m = $3; d[day] = 1
+      if (m ~ /opus/) { pi = 4; po = 20; pw = 5; pr = 0.2 }
+      else if (m ~ /sonnet/) { pi = 2; po = 10; pw = 2.5; pr = 0.1 }
+      else if (m ~ /haiku-5/) { pi = 0.1; po = 0.5; pw = 0.125; pr = 0.01 }
+      else { pi = 1; po = 5; pw = 1.25; pr = 0.1 }
+      calls[day] += $8
+      usd[day] +=($4 * pi + $5 * pw + $6 * pr + $7 * po) / 1e6
+    }
+    END {
+      printf "%-11s %9s %8s %6s %9s %7s %12s\n", "day", "claude $", "commits", "redos", "$/commit", "calls", "calls/commit"
+      for (k in d) {
+        printf "%-11s %9.2f %8d %6d %9s %7d %12s\n", k, usd[k], c[k], r[k], c[k] ? sprintf("%.2f", usd[k] / c[k]) : "-", calls[k], c[k] ? sprintf("%.0f", calls[k] / c[k]) : "-" | "sort"
+        tu += usd[k]; tc += c[k]; tr += r[k]; tn += calls[k]
+      }
+      close("sort")
+      printf "%-11s %9.2f %8d %6d %9s %7d %12s\n", "total", tu, tc, tr, tc ? sprintf("%.2f", tu / tc) : "-", tn, tc ? sprintf("%.0f", tn / tc) : "-"
+    }'
+  exit 0
+fi
+
+if (( edits )); then
+  elog=${XDG_STATE_HOME:-$HOME/.local/state}/melvbot/edit-route.tsv
+  {
+    [[ -f $elog ]] && awk -F'\t' -v since="$since" 'substr($1,1,10) >= since { print "E\t" substr($1,1,10) "\t" $2 "\t" $5 "\t" $1 }' "$elog"
+    claude_usage | awk -F'\t' '{ print "T\t" $1 "\t" $2 "\t" $6 }'
+  } | awk -F'\t' '
+    function secs(t) { return mktime(substr(t,1,4) " " substr(t,6,2) " " substr(t,9,2) " " substr(t,12,2) " " substr(t,15,2) " " substr(t,18,2)) }
+    $1 == "E" { d = $2; days[d] = 1; if ($3 == "opus-direct") { dn[d]++; dl[d] += $4 } else if ($3 == "denied") den[d]++; else if ($3 == "coder") { cn[d]++; s = secs($5); if (last && s - last <= 1800) fx[d]++; last = s } else if ($3 == "coder-result") { if ($4 == "pass") vp[d]++; else if ($4 == "fail") vf[d]++ } }
+    $1 == "T" { d = $2; days[d] = 1; if ($3 ~ /sonnet/) so[d] += $4; else if ($3 ~ /opus/) oo[d] += $4 }
+    function h(n) { return n >= 1e6 ? sprintf("%.2fM", n / 1e6) : sprintf("%.1fk", n / 1e3) }
+    END {
+      printf "%-11s %7s %7s %7s %8s %6s %6s %6s %12s %12s\n", "day", "direct", "lines", "denied", "coder", "pass", "fail", "fixup", "sonnet out", "opus out"
+      for (d in days) printf "%-11s %7d %7d %7d %8d %6d %6d %6d %12s %12s\n", d, dn[d], dl[d], den[d], cn[d], vp[d], vf[d], fx[d], h(so[d]), h(oo[d]) | "sort"
+    }'
+  exit 0
+fi
+
+cli_usage
+[[ -f $log ]] || { echo "no data yet ($log)"; sdk_usage; exit 0; }
+awk -F'\t' -v since="$since" '
+  function cred(c, r, o) { if (c ~ /^webx:/ && (r == "-" || r + 0 <= o + 0)) return 0; if (c == "webx:search") return 12800; if (c == "webx:extract") return 28000; if (c == "webx:ask") return 40800; return (r == "-") ? 0 : (r - o) / 4 }
+  substr($1,1,10) >= since {
+    k = substr($1,1,10) "\t" $2
+    calls[k]++
+    if ($3 != "-") { raw[k] += $3; out[k] += $4 }
+    saved[k] += cred($2, $3, $4)
+    mmi[k] += $8; mmo[k] += $9
+  }
+  END {
+    for (k in calls) printf "%s\t%d\t%.1f\t%.1f\t%d\t%d\t%d\t%d\n", k, calls[k], raw[k]/1024, out[k]/1024, saved[k], mmi[k], mmo[k], out[k]/4
+  }' "$log" | sort | awk -F'\t' 'BEGIN { printf "%-11s %-14s %6s %8s %7s %12s %9s %8s %10s\n", "day", "caller", "calls", "raw KB", "out KB", "tokens saved", "MM in", "MM out", "Claude tok" } { printf "%-11s %-14s %6d %8s %7s %12d %9d %8d %10d\n", $1, $2, $3, $4, $5, $6, $7, $8, $9 }'
+
+# Saved tokens as % of each day's total Claude tokens.
+totals=$(claude_usage | awk -F'\t' '{ t[$1] += $3 + $4 + $5 + $6 } END { for (d in t) printf "%s\t%d\n", d, t[d] }')
+if [[ -n $totals ]]; then
+  awk -F'\t' -v since="$since" '
+    function cred(c, r, o) { if (c ~ /^webx:/ && (r == "-" || r + 0 <= o + 0)) return 0; if (c == "webx:search") return 12800; if (c == "webx:extract") return 28000; if (c == "webx:ask") return 40800; return (r == "-") ? 0 : (r - o) / 4 }
+    FILENAME == ARGV[1] { tot[$1] = $2; next }
+    substr($1,1,10) >= since { s[substr($1,1,10)] += cred($2, $3, $4) }
+    END { for (d in s) if (d in tot && tot[d] > 0) printf "%s\t%.1f\t%d\t%d\n", d, 100 * s[d] / tot[d], s[d], tot[d] }' \
+    <(printf '%s\n' "$totals") "$log" | sort |
+    awk -F'\t' 'BEGIN { print "" } { printf "%s  helper tokens saved = %s%% of %d Claude tokens (%d saved)\n", $1, $2, $4, $3 }'
+fi
+helper_call_usage
+sdk_usage

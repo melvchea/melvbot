@@ -1,0 +1,8 @@
+# Replaces Ubuntu's bwrap-userns-restrict: lets bubblewrap (Claude Code CLI sandbox) create
+# nested user namespaces. Host-wide kernel.apparmor_restrict_unprivileged_userns=1 stays on.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+}

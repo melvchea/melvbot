@@ -1,0 +1,16 @@
+.git
+.venv
+tests
+docs
+dist
+ts/node_modules
+ts/dist
+__pycache__
+.pytest_cache
+.ruff_cache
+research
+_site
+changelog.md
+deploy
+scripts
+zensical.toml

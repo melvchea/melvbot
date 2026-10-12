@@ -1,0 +1,12 @@
+dist/
+__pycache__/
+.worktrees/
+research/
+
+# Picker runtime beside a local melvbot.toml (live copies are melvbot-data/runtime/)
+topic-embeddings/
+hf/
+incoming/
+ts/node_modules/
+ts/dist/
+.env
