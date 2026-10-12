@@ -40,6 +40,7 @@
       "Skill(run)",
       "Skill(init)",
       "Skill(claude-api)",
+      "Skill(code-review)",
       "CronCreate",
       "CronDelete",
       "CronList",
