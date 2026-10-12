@@ -74,6 +74,9 @@
   },
   "sandbox": {
     "autoAllowBashIfSandboxed": true,
+    "network": {
+      "allowedDomains": ["api.github.com"]
+    },
     "filesystem": {
       "denyRead": ["**/.env", "**/.env.*", "~/.env*"]
     }
