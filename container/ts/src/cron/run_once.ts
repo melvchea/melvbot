@@ -8,6 +8,7 @@ import { dcaNoteBlock, fetchYahooQuote, prefetchRule, type Quote } from "../assi
 import { completeWithProviders, HELPER_PROVIDERS } from "../assistant/fallback.js";
 import { routedSearch } from "../assistant/search_router.js";
 import { appendNoteHistory, getNote } from "../note/notes.js";
+import { recordTurn } from "../assistant/conversation_store.js";
 import { runBackup } from "./backup.js";
 import { titleLine } from "../telegram/title_line.js";
 import { runTurn } from "../assistant/turn.js";
@@ -427,7 +428,27 @@ export function parseDcaReply(reply: string): { telegram: string; noteEntry: str
   return telegram && noteEntry ? { telegram, noteEntry } : null;
 }
 
+/** One turn_log row per DCA run (route light:minimax, tokens estimated at 4 chars), so dturns/dsaved see the prepaid path. */
+export function logDcaRun(started: number, ok: boolean, promptChars: number, replyChars: number): void {
+  try {
+    recordTurn({
+      chatKey: null,
+      source: "cron",
+      route: "light:minimax",
+      tools: [],
+      inputTokens: Math.round(promptChars / 4),
+      outputTokens: Math.round(replyChars / 4),
+      ms: Date.now() - started,
+      status: ok ? "ok" : "error",
+      prompt: "DCA market update",
+    });
+  } catch {
+    // Logging must never fail the cron run.
+  }
+}
+
 async function runDcaViaMinimax(prompt: string): Promise<{ ok: boolean; text: string }> {
+  const started = Date.now();
   try {
     const note = await getNote("dollar-cost-averaging");
     // The rule prefetch drops the note when its cached read fails; the plan verdict needs it.
@@ -446,6 +467,7 @@ async function runDcaViaMinimax(prompt: string): Promise<{ ok: boolean; text: st
       parsed = parseDcaReply(text);
       last = text;
     }
+    logDcaRun(started, parsed !== null, prompt.length, last.length);
     if (!parsed) {
       return { ok: false, text: `MiniMax reply missing <telegram> or <note_entry> (${last.length} chars, ends: ${last.slice(-200)})` };
     }

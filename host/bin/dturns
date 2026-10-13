@@ -2,13 +2,21 @@
 # Review what the Telegram bot spent Claude quota on, to find requests worth a non-LLM intercept.
 #   dturns            last 7 days
 #   dturns 30         last 30 days
+#   dturns 2026-10-13 only turns since that day (after a fix)
 #   dturns 7 raw      print the turn log instead of a digest
-case ${1:-} in -h|--help) echo 'usage: dturns [days] [raw]'; exit 0 ;; esac
+case ${1:-} in -h|--help) echo 'usage: dturns [days|YYYY-MM-DD] [raw]'; exit 0 ;; esac
 export DIGEST_CALLER=${DIGEST_CALLER:-dturns}
 days=${1:-7}
-log=$(docker exec melvbot melvbot turns "$days") || exit 1
+# A YYYY-MM-DD argument means "since that day" (only logs after a fix).
+if [[ $days =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+  turns_arg=$days
+  days=$(( ( $(date +%s) - $(date -d "$days" +%s) ) / 86400 + 1 ))
+else
+  turns_arg=$days
+fi
+log=$(docker exec melvbot melvbot turns "$turns_arg") || exit 1
 if [[ ${2:-} == raw || ${2:-} == --raw ]]; then printf '%s\n' "$log"; exit 0; fi
-printf '%s\n' "$log" | tail -1
+printf '%s\n' "$log" | grep '^# '
 printf '%s\n' "$log" | grep -P '\tclaude\t' | digest --words 300 "Lines are Telegram messages that needed Claude (time, route, status, timing, tools, prompt; timing is <ms>ms ttft=<ms to first text> spawn=<ms to first SDK message, 0 = reused process> rt=<API round trips> ctx=<context tokens>, - when not measured). Group them into recurring intents with counts, most frequent first. For each intent: 2 example phrasings, the tools used, typical ms and rt, and a verdict: REGEX (deterministic parser) or CLAUDE (needs the model)."
 
 # Search & fetch: plain numbers from the container logs (no LLM). docker logs only reach back as far
