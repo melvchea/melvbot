@@ -130,3 +130,17 @@ test("weekly rebuild returns non-zero and does not recreate when the build fails
   assert.notEqual(result.status, 0);
   assert.doesNotMatch(result.docker, /up -d/);
 });
+
+test("sdk update steps get a HOME when systemd runs the script without one", async () => {
+  await withTempDir("sdk-home-", (dir) => {
+    const log = path.join(dir, "log");
+    const env = { PATH: process.env.PATH ?? "", LOG: log, CLAUDE_SDK_TS_DIR: dir };
+    const script = path.join(scriptsDir, "daily-maint-claude-sdk.sh");
+    const run = spawnSync("sh", ["-c", '. "$0"; _sdk_in_ts sh -c \'echo "home=$HOME"\'', script], {
+      env,
+      encoding: "utf8",
+    });
+    assert.equal(run.status, 0);
+    assert.match(readFileSync(log, "utf8"), /^home=\/home\/melvbot$/m);
+  });
+});

@@ -17,7 +17,8 @@ _sdk_installed() {
     jq -r --arg p "node_modules/$CLAUDE_SDK_PKG" '.packages[$p].version // empty' "$CLAUDE_SDK_TS_DIR/package-lock.json"
 }
 
-_sdk_in_ts() { (cd "$CLAUDE_SDK_TS_DIR" && "$@" >>"$LOG" 2>&1); }
+# systemd runs this without HOME; dverify/ddeploy resolve the repo from $HOME.
+_sdk_in_ts() { (cd "$CLAUDE_SDK_TS_DIR" && HOME="${HOME:-/home/melvbot}" "$@" >>"$LOG" 2>&1); }
 
 _sdk_restore() {
     cp "$1/package.json" "$1/package-lock.json" "$CLAUDE_SDK_TS_DIR/"
