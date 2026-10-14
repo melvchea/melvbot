@@ -134,9 +134,10 @@ test("weekly rebuild returns non-zero and does not recreate when the build fails
 test("sdk update steps get a HOME when systemd runs the script without one", async () => {
   await withTempDir("sdk-home-", (dir) => {
     const log = path.join(dir, "log");
-    const env = { PATH: process.env.PATH ?? "", LOG: log, CLAUDE_SDK_TS_DIR: dir };
-    const script = path.join(scriptsDir, "daily-maint-claude-sdk.sh");
-    const run = spawnSync("sh", ["-c", '. "$0"; _sdk_in_ts sh -c \'echo "home=$HOME"\'', script], {
+    const env = { ...process.env, LOG: log, CLAUDE_SDK_TS_DIR: dir };
+    delete env.HOME;
+    const run = spawnSync("sh", ["-c", '. "$0"; _sdk_in_ts sh -c \'echo "home=$HOME"\'', "./daily-maint-claude-sdk.sh"], {
+      cwd: scriptsDir,
       env,
       encoding: "utf8",
     });
