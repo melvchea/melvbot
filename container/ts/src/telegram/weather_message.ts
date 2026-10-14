@@ -132,3 +132,43 @@ export async function deleteQuotedStaleWeather(
     /* quoted weather message already gone */
   }
 }
+
+export function morningMessageStatePath(): string {
+  return path.join(path.dirname(weatherMessageStatePath()), "morning-messages.json");
+}
+
+function readMessageIds(filePath: string): { chatId: number; messageIds: number[] } | null {
+  try {
+    const raw = JSON.parse(readFileSync(filePath, "utf8")) as { chatId?: unknown; messageIds?: unknown };
+    if (typeof raw.chatId !== "number" || !Array.isArray(raw.messageIds)) {
+      return null;
+    }
+    return { chatId: raw.chatId, messageIds: raw.messageIds.filter((id): id is number => typeof id === "number") };
+  } catch {
+    return null;
+  }
+}
+
+/** Records the new messages, then deletes the ones recorded by the previous run. */
+export async function replacePriorMessages(
+  api: Pick<WeatherPublishApi, "deleteMessage">,
+  chatId: number,
+  newIds: number[],
+  filePath: string,
+): Promise<void> {
+  const previous = readMessageIds(filePath);
+  mkdirSync(path.dirname(filePath), { recursive: true });
+  const tmp = `${filePath}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify({ chatId, messageIds: newIds })}\n`);
+  renameSync(tmp, filePath);
+  for (const id of previous?.messageIds ?? []) {
+    if (newIds.includes(id)) {
+      continue;
+    }
+    try {
+      await api.deleteMessage(previous!.chatId, id);
+    } catch {
+      /* prior message already gone */
+    }
+  }
+}

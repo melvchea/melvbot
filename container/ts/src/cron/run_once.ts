@@ -31,7 +31,7 @@ import {
   sgtHour,
   shouldSendWeather,
 } from "../telegram/weather.js";
-import { dcaMessageStatePath, publishReplacingMessage, publishWeatherMessage, readWeatherWatch, writeWeatherWatch } from "../telegram/weather_message.js";
+import { dcaMessageStatePath, morningMessageStatePath, publishReplacingMessage, publishWeatherMessage, readWeatherWatch, replacePriorMessages, writeWeatherWatch } from "../telegram/weather_message.js";
 import { latestSlotToday, slotKey } from "./due.js";
 import { renderMorningUpdate, splitMorningUpdate } from "./morning_update.js";
 import { formatMaintReportMessages, TELEGRAM_VISIBLE_LIMIT } from "./maint_report.js";
@@ -216,6 +216,7 @@ async function sendMorningUpdate(
   }
   const api = new TelegramApi(token);
   const chunks = splitMorningUpdate(text, { news });
+  const sentIds: number[] = [];
   for (const [index, payload] of chunks.entries()) {
     const isLast = index === chunks.length - 1;
     const extra: { entities?: typeof payload.entities; reply_markup?: { inline_keyboard: unknown[] } } = {};
@@ -232,8 +233,14 @@ async function sendMorningUpdate(
         extra.reply_markup = { inline_keyboard: rows };
       }
     }
-    requireSent(await api.sendMessage(Number(dest), body, extra));
+    const sent = await api.sendMessage(Number(dest), body, extra);
+    requireSent(sent);
+    const id = (sent as { message_id?: unknown } | null)?.message_id;
+    if (typeof id === "number") {
+      sentIds.push(id);
+    }
   }
+  await replacePriorMessages(api, Number(dest), sentIds, morningMessageStatePath());
 }
 
 /** Builds the Heads up block for the Morning Update. A failure is logged and
