@@ -137,6 +137,14 @@ export function morningMessageStatePath(): string {
   return path.join(path.dirname(weatherMessageStatePath()), "morning-messages.json");
 }
 
+export function maintMessageStatePath(): string {
+  return path.join(path.dirname(weatherMessageStatePath()), "maint-messages.json");
+}
+
+export function outlookMessageStatePath(): string {
+  return path.join(path.dirname(weatherMessageStatePath()), "outlook-messages.json");
+}
+
 function readMessageIds(filePath: string): { chatId: number; messageIds: number[] } | null {
   try {
     const raw = JSON.parse(readFileSync(filePath, "utf8")) as { chatId?: unknown; messageIds?: unknown };

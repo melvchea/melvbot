@@ -31,7 +31,7 @@ import {
   sgtHour,
   shouldSendWeather,
 } from "../telegram/weather.js";
-import { dcaMessageStatePath, morningMessageStatePath, publishReplacingMessage, publishWeatherMessage, readWeatherWatch, replacePriorMessages, writeWeatherWatch } from "../telegram/weather_message.js";
+import { dcaMessageStatePath, maintMessageStatePath, morningMessageStatePath, outlookMessageStatePath, publishReplacingMessage, publishWeatherMessage, readWeatherWatch, replacePriorMessages, writeWeatherWatch } from "../telegram/weather_message.js";
 import { latestSlotToday, slotKey } from "./due.js";
 import { renderMorningUpdate, splitMorningUpdate } from "./morning_update.js";
 import { formatMaintReportMessages, TELEGRAM_VISIBLE_LIMIT } from "./maint_report.js";
@@ -183,24 +183,43 @@ function requireSent(result: unknown): void {
   }
 }
 
-async function telegramNotify(text: string): Promise<void> {
-  const dest = chatId();
-  const token = botToken();
-  if (!dest || !token) {
-    return;
-  }
-  const api = new TelegramApi(token);
-  requireSent(await api.sendMessage(Number(dest), clip(text)));
+function sentMessageId(sent: unknown): number | null {
+  const id = (sent as { message_id?: unknown } | null)?.message_id;
+  return typeof id === "number" ? id : null;
 }
 
-async function telegramNotifyWithButtons(text: string, keyboard: ReturnType<typeof nudgeButtonsKeyboard>): Promise<void> {
+/** Deletes the messages the previous run recorded at statePath and records these. */
+async function replaceRecorded(ids: (number | null)[], statePath: string): Promise<void> {
   const dest = chatId();
   const token = botToken();
   if (!dest || !token) {
     return;
   }
+  await replacePriorMessages(new TelegramApi(token), Number(dest), ids.filter((id): id is number => id !== null), statePath);
+}
+
+async function telegramNotify(text: string): Promise<number | null> {
+  const dest = chatId();
+  const token = botToken();
+  if (!dest || !token) {
+    return null;
+  }
   const api = new TelegramApi(token);
-  requireSent(await api.sendMessage(Number(dest), clip(text), { reply_markup: keyboard }));
+  const sent = await api.sendMessage(Number(dest), clip(text));
+  requireSent(sent);
+  return sentMessageId(sent);
+}
+
+async function telegramNotifyWithButtons(text: string, keyboard: ReturnType<typeof nudgeButtonsKeyboard>): Promise<number | null> {
+  const dest = chatId();
+  const token = botToken();
+  if (!dest || !token) {
+    return null;
+  }
+  const api = new TelegramApi(token);
+  const sent = await api.sendMessage(Number(dest), clip(text), { reply_markup: keyboard });
+  requireSent(sent);
+  return sentMessageId(sent);
 }
 
 async function sendMorningUpdate(
@@ -563,12 +582,13 @@ async function executeJob(job: CronJob): Promise<string> {
       const candidates = extractReceiptCandidates(messages as GraphMessage[]);
       if (candidates.length > 0) {
         const receipts = candidates.map((candidate) => ({ ...candidate, code: createDigestReceipt(candidate).code }));
-        await telegramNotifyWithButtons(message, digestLogButtonsKeyboard(receipts));
+        const id = await telegramNotifyWithButtons(message, digestLogButtonsKeyboard(receipts));
+        await replaceRecorded([id], outlookMessageStatePath());
         persistDigestSuccess(slot);
         return message;
       }
     }
-    await telegramNotify(message);
+    await replaceRecorded([await telegramNotify(message)], outlookMessageStatePath());
     persistDigestSuccess(slot);
     return message;
   }
@@ -578,9 +598,11 @@ async function executeJob(job: CronJob): Promise<string> {
     }
     const raw = runCronScript(job.script);
     const messages = formatMaintReportMessages(raw);
+    const ids: (number | null)[] = [];
     for (const message of messages) {
-      await telegramNotify(message);
+      ids.push(await telegramNotify(message));
     }
+    await replaceRecorded(ids, maintMessageStatePath());
     return messages.join("\n\n");
   }
   if (isWeeklyReminderPrompt(job.prompt)) {
