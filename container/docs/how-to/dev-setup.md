@@ -9,7 +9,7 @@ npx tsc -p tsconfig.json --noEmit
 npm test
 ```
 
-`npm run test:coverage` is what CI runs; it fails below 67% lines, 68% branches or 55% functions (measured 69/71/58 on 2026-10-12; raise the gates when coverage rises) and any test over 30 s.
+`npm run test:coverage` is what CI runs; it fails below 68% lines, 70% branches or 57% functions (measured 69/71/58 on 2026-10-12; raise the gates when coverage rises) and any test over 30 s.
 
 ## Test policy
 
