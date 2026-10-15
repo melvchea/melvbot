@@ -44,9 +44,12 @@ BUILDER_CACHE_ROUNDING_TOLERANCE_BYTES="${BUILDER_CACHE_ROUNDING_TOLERANCE_BYTES
 CONTAINER_PRUNE_UNTIL="${CONTAINER_PRUNE_UNTIL:-24h}"
 JOURNAL_VACUUM_SIZE="${JOURNAL_VACUUM_SIZE:-32M}"
 REBOOT_DELAY_MIN="${REBOOT_DELAY_MIN:-5}"
-# All candidates, security included, wait 23h: one 3am cycle, with an hour of
-# slack if the timer fires early.
+# Security candidates wait 23h: one 3am cycle, with an hour of slack if the
+# timer fires early. Others wait 3 days; kernel, docker and containerd wait
+# 7 days, security or not.
 APT_MIN_AGE_SEC="${APT_MIN_AGE_SEC:-82800}"
+APT_MIN_AGE_OTHER_SEC="${APT_MIN_AGE_OTHER_SEC:-259200}"
+APT_MIN_AGE_CRITICAL_SEC="${APT_MIN_AGE_CRITICAL_SEC:-604800}"
 APT_FIRST_SEEN_FILE="${APT_FIRST_SEEN_FILE:-$STATE_DIR/apt-candidate-first-seen.tsv}"
 APT_AGE_GATE_CONF="${APT_AGE_GATE_CONF:-/etc/apt/apt.conf.d/99-melvbot-age-gate.conf}"
 APT_AGE_GATE_PIN="${APT_AGE_GATE_PIN:-/etc/apt/preferences.d/99-melvbot-age-gate}"
@@ -236,7 +239,19 @@ run_apt_update() {
     return "$_rc"
 }
 
-# Split upgradable candidates (security included) into those past the 23h window
+# Hold-back seconds for one `apt list --upgradable` line: $1 package, $2 line.
+apt_min_age_for() {
+    case "$1" in
+        linux-image-*|linux-headers-*|linux-modules-*|docker-ce*|containerd.io)
+            echo "$APT_MIN_AGE_CRITICAL_SEC"; return ;;
+    esac
+    case "$2" in
+        *-security*) echo "$APT_MIN_AGE_SEC" ;;
+        *) echo "$APT_MIN_AGE_OTHER_SEC" ;;
+    esac
+}
+
+# Split upgradable candidates into those past their hold-back window
 # and those still inside it. Refreshes the first-seen ledger.
 # Sets APT_AGE_GATE_HELD, APT_AGE_GATE_ELIGIBLE, and
 # APT_AGE_GATE_PINS. Must not be called from a command substitution.
@@ -275,7 +290,7 @@ apt_age_gate_partition() {
             APT_AGE_GATE_HELD="${APT_AGE_GATE_HELD}${APT_AGE_GATE_HELD:+ }$_pkg"
             continue
         fi
-        if [ "$_age" -ge "$APT_MIN_AGE_SEC" ]; then
+        if [ "$_age" -ge "$(apt_min_age_for "$_pkg" "$_line")" ]; then
             APT_AGE_GATE_ELIGIBLE="${APT_AGE_GATE_ELIGIBLE}${APT_AGE_GATE_ELIGIBLE:+ }$_pkg"
             continue
         fi
@@ -287,7 +302,7 @@ apt_age_gate_partition() {
     rm -f "$_tmp_upgradable"
     # A candidate that disappeared before we installed it was pulled from the
     # index (yanked or replaced). Apt will not offer it, so we do not install
-    # it. A replacement version is a new ledger row and waits another 23h.
+    # it. A replacement version is a new ledger row and waits its full window again.
     : > "$APT_WITHDRAWN_FILE"
     if [ -s "$_old_seen" ]; then
         while IFS="$(printf '\t')" read -r _opkg _over _ofirst; do
@@ -345,7 +360,7 @@ apt_gate_cleanup() {
 }
 
 # unattended-upgrades does not install -updates or third-party origins.
-# Upgrade those explicitly once they have cleared the 23h gate. Version pins
+# Upgrade those explicitly once they have cleared their age gate. Version pins
 # keep younger candidates out. "upgrade" rather than
 # "install --only-upgrade" keeps apt's own safeguards: anything that would
 # need a removal, and anything Ubuntu is still phasing, is kept back.

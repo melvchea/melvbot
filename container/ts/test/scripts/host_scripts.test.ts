@@ -145,3 +145,15 @@ test("sdk update steps get a HOME when systemd runs the script without one", asy
     assert.match(readFileSync(log, "utf8"), /^home=\/home\/melvbot$/m);
   });
 });
+
+// apt age gate: security waits one night, the rest 3 days, kernel/docker 7 days even from -security.
+test("apt_min_age_for: security 23h, other 3d, kernel and docker 7d even from -security", () => {
+  const script = path.join(scriptsDir, "daily-maint-melvbot.sh");
+  const prog = `eval "$(sed -n '/^APT_MIN_AGE_SEC=/,/^APT_MIN_AGE_CRITICAL_SEC=/p;/^apt_min_age_for()/,/^}/p' "$0")"
+for c in "curl|curl/noble-security 1 amd64" "curl|curl/noble-updates 1 amd64" "linux-image-6.8|linux-image-6.8/noble-security 1 amd64" "docker-ce|docker-ce/noble stable 1 amd64"; do
+  apt_min_age_for "\${c%%|*}" "\${c#*|}"
+done`;
+  const run = spawnSync("bash", ["-c", prog, script], { encoding: "utf8" });
+  assert.equal(run.status, 0);
+  assert.deepEqual(run.stdout.trim().split("\n"), ["82800", "259200", "604800", "604800"]);
+});
