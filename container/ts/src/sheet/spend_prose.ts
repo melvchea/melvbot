@@ -403,11 +403,13 @@ export type SpendOp =
   | { kind: "delete"; card: SpendCard; target: string };
 
 const OP_VERBS = "amend|rename|change|edit|delete|remove|add|store|log|record";
-const INLINE_SPLIT_RE = new RegExp(`\\s{2,}(?=(?:${OP_VERBS})\\s)`, "i");
+const INLINE_SPLIT_RE = new RegExp(`(?:\\s{2,}|(?<=\\S)\\.\\s+)(?=(?:${OP_VERBS})\\s)`, "i");
 const LEAD_CARD_RE = (): RegExp => new RegExp(`^for\\s+(${aliasTable().alt})(?:\\s+spend(?:ing)?)?\\s*[,:]\\s*`, "i");
 const TAIL_CARD_RE = (): RegExp => new RegExp(`\\s+(?:under|to|on|for|in|from)\\s+(${aliasTable().alt})(?:\\s+spend(?:ing)?)?$`, "i");
 const AMEND_RE = /^(?:amend|rename)\s+(?<from>.+?)\s+to\s+(?:be\s+)?(?<to>.+)$/i;
 const DELETE_RE = /^(?:delete|remove)\s+(?<target>.+?)\s+(?:line\s*items?|lines?|rows?|entry|entries)$/i;
+/** "delete [3 Oct] Merchant $6.79 [3 Oct]": no row suffix, but the "$amount" keeps prose out; the date is dropped. */
+const DELETE_AMOUNT_RE = /^(?:delete|remove)\s+(?:\d{1,2}\s+[A-Za-z]{3,9}\s+)?(?<target>.*\S.*\$\d[\d,]*(?:\.\d+)?)(?:\s+\d{1,2}\s+[A-Za-z]{3,9})?$/i;
 const BARE_WORD_RE = /^[A-Za-z][\w&'’.-]*$/;
 const DOLLAR_AMOUNT_RE = /^S?\$\d[\d,]*(?:\.\d+)?$/i;
 const BARE_STOP = new Set(
@@ -469,7 +471,7 @@ function parseSpendSegment(segment: string, today: string): SpendDraft | null {
       text = text.slice(0, tail.index);
     }
     const amend = AMEND_RE.exec(text);
-    const del = DELETE_RE.exec(text);
+    const del = DELETE_RE.exec(text) ?? DELETE_AMOUNT_RE.exec(text);
     const op = amend
       ? ({ kind: "rename", from: unquote(amend.groups?.from ?? ""), to: unquote(amend.groups?.to ?? "") } as const)
       : del

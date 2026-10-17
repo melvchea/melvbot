@@ -27,6 +27,17 @@ flowchart TB
 4. The agent has no built-in tools. It can only call the `melvbot` MCP tools. Confirmation gating and the untrusted-content write guard run inside those tools.
 5. If Claude is unavailable (limit, login, overload), the turn degrades to a read-only answer from Groq or MiniMax, with a notice. Cron turns fail loudly instead.
 
+## Prose intercepts vs LLM turns
+
+An intercept (`src/telegram/prose_intercept.ts`) answers a whole message with no model; everything else is a Claude turn. The table is ordered, anchored to the whole message, and falls through to Claude when a handler returns false.
+
+- **Add an intercept** only for a frequent, repeatable, low-risk phrasing with a fixed reply (a lookup or a structured write). Open-ended research, summaries and free-form note edits stay on Claude. Never build an intent per phrasing: widen an existing matcher before adding a new entry.
+- **Irreversible actions** (deletes, overwrites) keep the confirmation gate, intercept or not.
+- **Measure before changing.** Every hit logs `intercept:<name>` in `turn_log`; Claude turns log the prompt. Compare per-route hits with Claude prompts that start with show/list/add/delete/update (`ddb conversation`) to find misses, and read at least a month of rows before removing an intercept (zero hits in two weeks is thin, and smoke tests pollute the log).
+- **Fix a miss** by widening the matcher with a regression test for the exact missed phrase, and add the phrase to `test/intercept_overlap.test.ts` if another matcher could also accept it.
+- **Remove** an intercept only after 30 days of zero hits; delete its matcher and tests together.
+- **Cost:** an intercept saves a full turn (system prompt, recall, tool calls). Prompt-cache hit rate is unaffected because the system prompt stays byte-stable; per-turn data goes in the user message.
+
 ## Reminders
 
 Google stores, Telegram alerts. Calendar and Tasks hold the data; melvbot-created events carry a private `melvbot=reminder|event` tag and no Google popup. A background ticker (`src/reminders/ticker.ts`, started by the poll loop) fetches tagged events every 5 minutes and checks the cache every minute: a reminder pings at its start with Done / Snooze buttons (`rm:` callbacks patch the event in Google), an appointment pings 30 minutes ahead. Sent alerts are deduped in `nudges.sqlite3`. At 19:15 SGT it lists tasks still due or overdue with Done / Tomorrow buttons (`tk:`), gated by `[nudges] task_evening`. One formatter (`src/reminders/format.ts`) renders the Morning Update data, agenda replies, alerts and the `reminders` listing.

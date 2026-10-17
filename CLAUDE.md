@@ -2,7 +2,7 @@
 
 Telegram personal assistant. TypeScript daemon in `container/ts`, run as the `melvbot` Docker container.
 Agent = Claude Agent SDK, Haiku 5.5 (effort low by default; effort medium per turn on `think:` or complex-prose triggers), Claude subscription login only (no API key; shares the Pro quota with the host CLI).
-Routing per message: non-LLM `,commands` and prose intercepts (`src/telegram/prose_intercept.ts`) → Claude (Haiku). Media: images (vision, OCR) and video → MiniMax-M3; voice and audio files → Groq Whisper STT. Every turn after the intercepts is logged with its prompt in `turn_log` (`melvbot turns`, host `dturns` for the weekly review).
+Routing per message: non-LLM `,commands` and prose intercepts (`src/telegram/prose_intercept.ts`) → Claude (Haiku). Media: images (vision, OCR) and video → MiniMax-M3; voice and audio files → Groq Whisper STT. Intercept rules (when to add, measure, fix, remove): `container/docs/explanation/architecture.md`. Every turn after the intercepts is logged with its prompt in `turn_log` (`melvbot turns`, host `dturns` for the weekly review).
 
 Runtime rule files: `host/assistant/prompts/`; host helpers and hooks: `host/README.md`.
 
@@ -22,7 +22,7 @@ Runtime rule files: `host/assistant/prompts/`; host helpers and hooks: `host/REA
 - Tests: key tests only, no cap: add every test a necessary behaviour needs, never an unimportant one: always prevent and remove non-key tests (prune trivial/duplicate tests on every change); every fixed bug gets a regression test. Read `container/docs/how-to/dev-setup.md` before adding or changing tests.
 
 ## Token routing (full form: `host/README.md` "Token routing"; enforced by `offload-guard`)
-- Cheapest first: non-LLM (`rg`, `sed -n`, `jq`) → MiniMax helpers over ~30 lines (`digest`, `dverify`, `dbuild`, `webx ask`) → main-session edits ≤50 lines → `coder` (Haiku 5.5 medium) after posting the spec and getting a yes. Searches: `dexplore` first; never `fork`.
+- Cheapest first: non-LLM (`rg`, `sed -n`, `jq`) → MiniMax helpers over ~30 lines (`digest`, `dverify`, `dbuild`, `webx ask`) → main-session edits ≤50 lines → `coder` (Haiku 5.5 medium) after posting the spec and getting a yes, only when the spec costs far fewer tokens than the diff (mechanical/repeated patterns, heavy file reading); else edit inline. Searches: `dexplore` first; never `fork`.
 
 ## Cost per completed outcome (full form: README "Cost rules"; review `!` rows in `dsaved --sessions`)
 - Batch open requests and decisions into one AskUserQuestion before any change. Before executing anything (edits, `coder`, deploy, commit), always end with a yes/no AskUserQuestion "Are all prompts and decisions in?" and act only on yes; a new request after that restarts the check. Verify with `dverify` before reporting done.

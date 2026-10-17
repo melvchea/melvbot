@@ -78,6 +78,16 @@ test("spend add needing confirm stores an offer; Confirm writes, Cancel does not
   }
 });
 
+test("spend ops: delete by merchant and amount and '. '-joined ops are intercepted; bare prose is not", () => {
+  const ops = parseSpendOps("for CardOne, delete 3 Oct FairPrice $6.79. add 3 Oct NTUC $1.77", NOW);
+  assert.deepEqual(ops?.map((op) => op.kind), ["delete", "add"]);
+  assert.equal(ops?.[0].kind === "delete" && ops[0].target, "FairPrice $6.79");
+  const trailing = parseSpendOps("for CardOne, remove NTUC $110.38 26 Sep. add NTUC $110.38 27 Sep", NOW);
+  assert.equal(trailing?.[0].kind === "delete" && trailing[0].target, "NTUC $110.38");
+  assert.equal(parseSpendOps("delete the old meeting notes", NOW), null);
+  assert.equal(parseSpendOps("remove $5 from my wishlist", NOW), null);
+});
+
 test("spend ops: date-first multi-item, bare line with remembered card, amend and delete rows, combined message", async () => {
   const ops = parseSpendOps("add 4 Oct Shopee $32.19 Vending $2 Vending $2", NOW);
   assert.deepEqual(ops?.[0].kind === "add" && ops[0].entries.map((e) => `${e.spentOn} ${e.merchant} ${e.amount}`), ["2026-10-04 Shopee 32.19", "2026-10-04 Vending 2", "2026-10-04 Vending 2"]);
