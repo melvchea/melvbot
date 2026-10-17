@@ -1,6 +1,6 @@
 ---
 name: coder
-description: Code in the melvbot repo that still needs judgment - unknown-cause debugging, design, edits that need reading many files first, mocking/timing tests whose shape can't be written in advance, or changes over ~50 lines per edit. Give it files, the goal and how to verify. Runs on Haiku 5.5, medium effort.
+description: Scoped multi-file edits in the melvbot repo from a spec the main session already wrote, or changes over ~50 lines per edit. Not for unknown-cause debugging or design. Give it files, the goal and how to verify. Runs on Haiku 5.5, medium effort.
 model: claude-haiku-5-5
 tools: Read, Edit, Write, Bash
 effort: medium
