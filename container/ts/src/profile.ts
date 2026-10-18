@@ -50,12 +50,6 @@ export function cardLabel(owner: "owner1" | "owner2", card: "card1" | "card2"): 
   return `${names[owner]} ${names[card]}`;
 }
 
-/** Regex alternation matching an owner's id or display name (case-insensitive use). */
-export function ownerAlternation(): string {
-  const names = displayNames();
-  return ["owner1", "owner2", names.owner1, names.owner2].map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-}
-
 /** Vehicle name for user-facing prose (profile key vehicle). */
 export function vehicleName(): string {
   return displayNames().vehicle;
@@ -65,13 +59,6 @@ export function vehicleName(): string {
 export function vehicleAlternation(): string {
   const vehicle = (loadProfile().vehicle ?? "").trim().toLowerCase();
   return vehicle ? `${vehicle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}|ev` : "ev";
-}
-
-/** True when typed text names the vehicle (profile value, any case) or is "ev". */
-export function isEvName(text: string): boolean {
-  const lower = text.trim().toLowerCase();
-  const vehicle = (loadProfile().vehicle ?? "").trim().toLowerCase();
-  return lower === "ev" || (vehicle !== "" && lower === vehicle);
 }
 
 export function applyProfile(text: string, profile: Profile, label: string): string {

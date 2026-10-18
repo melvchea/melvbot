@@ -1,4 +1,3 @@
-const MINIMAX_IMAGE = "https://api.minimax.io/v1/image_generation";
 const MINIMAX_CHAT = "https://api.minimax.io/v1/chat/completions";
 const MINIMAX_VIDEO_GENERATION = "https://api.minimax.io/v1/video_generation";
 const MINIMAX_VIDEO_QUERY = "https://api.minimax.io/v1/query/video_generation";
@@ -54,30 +53,6 @@ export async function transcribeVoice(bytes: Buffer, filename = "voice.ogg"): Pr
   }
   const payload = (await response.json()) as { text?: string };
   return String(payload.text ?? "").trim();
-}
-
-export async function generateImage(prompt: string): Promise<Buffer> {
-  const key = minimaxKey();
-  if (!key) {
-    throw new Error("MINIMAX_API_KEY missing");
-  }
-  const response = await fetch(MINIMAX_IMAGE, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${key}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({ prompt, model: "image-01" }),
-  });
-  if (!response.ok) {
-    throw new Error(`imagegen failed HTTP ${response.status}`);
-  }
-  const payload = (await response.json()) as { data?: { b64_json?: string }[] };
-  const b64 = payload.data?.[0]?.b64_json;
-  if (!b64) {
-    throw new Error("imagegen empty");
-  }
-  return Buffer.from(b64, "base64");
 }
 
 export async function understandImage(

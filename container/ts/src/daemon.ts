@@ -14,7 +14,7 @@ import { deleteQuotedStaleWeather } from "./telegram/weather_message.js";
 import { attachedImageMime, dispatchImageCaption, isImageActionRequest, readImageForTurn } from "./telegram/image_caption.js";
 import { attachedVideo, dispatchVideoCaption } from "./telegram/video_caption.js";
 import { handleProseCallback } from "./telegram/prose_callback_handler.js";
-import { captionImage, generateImage, generateVideo, ocrImage, transcribeVoice, understandVideo } from "./media/services.js";
+import { captionImage, generateVideo, ocrImage, transcribeVoice, understandVideo } from "./media/services.js";
 import { synthesizeGoogleVoice } from "./media/tts_google.js";
 import { shouldSendVoice, synthesizeMinimaxVoice } from "./media/tts.js";
 import { loadTtsSettings } from "./session/settings.js";
@@ -658,8 +658,6 @@ async function processTextWithoutCommaCheck(
     await dispatchProseIntercept(api, msg, text, {
       downloadRememberedPhoto: (targetChatId) => downloadRememberedPhoto(api, targetChatId),
       ocrImage,
-      generateImage,
-      generateVideo,
     })
   ) {
     return;

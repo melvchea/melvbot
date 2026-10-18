@@ -58,7 +58,7 @@ Live TypeScript tree under `ts/src`. `index.ts` dispatches the CLI (`doctor`, `s
 | Area | Modules | Responsibility |
 |------|---------|----------------|
 | Entry | `index.ts`, `daemon.ts` | CLI dispatch; Telegram long-poll loop, commands, progress edits |
-| Telegram | `telegram/api.ts`, `commands.ts`, `progress_edits.ts`, `outbox.ts`, `agenda_prose.ts`, `prose_intercept.ts`, `date_prose.ts`, `weather*.ts`, `shopping_list.ts` | Bot API, command parsing, rate-limited edits, model-free replies |
+| Telegram | `telegram/api.ts`, `commands.ts`, `progress_edits.ts`, `outbox.ts`, `prose_intercept.ts`, `weather*.ts`, `shopping_list.ts` | Bot API, command parsing, rate-limited edits, model-free replies |
 | Agent | `assistant/claude_session.ts` | One Agent SDK `query()` per turn, resume, idle sweep, unavailable backoff |
 | | `assistant/turn.ts` | Turn orchestration, audit log, fallback hand-off |
 | | `assistant/custom_tools.ts`, `tools.ts` | MCP tools, CLI allowlist, web search/fetch, confirm and write guards |

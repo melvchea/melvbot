@@ -1,4 +1,4 @@
-import { cardLabel } from "../profile.js";
+import { cardLabel, displayNames } from "../profile.js";
 import { createHash } from "node:crypto";
 
 import { normalizeMerchant } from "./spend_dedupe.js";
@@ -30,14 +30,18 @@ export const OWNER2_TX_HEADERS = [
 
 export type SpendCard = { owner: "owner1" | "owner2"; card: "card1" | "card2" };
 
+/** Accepts ids, display names ("Cass", "Dividend") or the full label, since prompts render display names. */
 export function normalizeSpendCard(owner: string, card: string): SpendCard {
-  const ownerKey = owner.trim();
-  const cardKey = card.trim();
-  if (ownerKey === "owner1" && (cardKey === "card1" || cardKey === cardLabel("owner1", "card1"))) {
-    return { owner: "owner1", card: "card1" };
-  }
-  if (ownerKey === "owner2" && (cardKey === "card2" || cardKey === cardLabel("owner2", "card2"))) {
-    return { owner: "owner2", card: "card2" };
+  const names = displayNames();
+  const ownerKey = owner.trim().toLowerCase();
+  const cardKey = card.trim().toLowerCase();
+  for (const id of ["owner1", "owner2"] as const) {
+    const cardId = id === "owner1" ? "card1" : "card2";
+    const ownerOk = ownerKey === id || ownerKey === names[id].toLowerCase();
+    const cardOk = [cardId, names[cardId], cardLabel(id, cardId)].some((k) => k.toLowerCase() === cardKey);
+    if (ownerOk && cardOk) {
+      return { owner: id, card: cardId };
+    }
   }
   throw new Error(`unsupported owner/card pair: ${owner}/${card}`);
 }

@@ -45,7 +45,7 @@ export const AGENT_CWD = existsSync("/workspace") ? "/workspace" : process.cwd()
  * or `~/.claude/.credentials.json`). API-key variables are removed so the CLI can never bill the API.
  * Fast mode is disabled via CLAUDE_CODE_DISABLE_FAST_MODE.
  */
-function subscriptionEnv(): Record<string, string | undefined> {
+export function subscriptionEnv(): Record<string, string | undefined> {
   const env = { ...process.env };
   delete env.ANTHROPIC_API_KEY;
   delete env.ANTHROPIC_AUTH_TOKEN;

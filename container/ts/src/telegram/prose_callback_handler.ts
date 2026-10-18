@@ -1,22 +1,12 @@
 import { vehicleName } from "../profile.js";
 import type { TelegramApi, TelegramUpdate } from "./api.js";
-import { executeNoteCombine, executeNoteDelete } from "../note/note_prose.js";
-import { createAndPinSheet, sheetLabel, sheetDeleteExistingRefusal } from "../sheet/sheet_prose.js";
 import {
   PROSE_CANCEL,
   PROSE_CONFIRM,
-  PROSE_CREATE,
-  PROSE_DELETE_EXISTING,
   parseProseCallback,
-  storeNoteCombineOffer,
-  storeNoteDeleteOffer,
-  storeSheetActionOffer,
-  takeNoteCombineOffer,
   storeEvAddOffer,
   storeSpendAddOffer,
   takeEvAddOffer,
-  takeNoteDeleteOffer,
-  takeSheetActionOffer,
   takeSpendAddOffer,
   storeSpendEditOffer,
   takeSpendEditOffer,
@@ -38,40 +28,6 @@ export async function handleProseCallback(
   const messageId = update.message?.message_id;
   if (chatId === undefined) {
     await api.answerCallback(update.id, "expired");
-    return true;
-  }
-
-  if (parsed.kind === "note_combine") {
-    const offer = takeNoteCombineOffer(parsed.nonce);
-    if (!offer) {
-      await api.answerCallback(update.id, "expired");
-      return true;
-    }
-    if (offer.senderId && update.from.id !== offer.senderId) {
-      storeNoteCombineOffer(offer, parsed.nonce);
-      await api.answerCallback(update.id, "not your picker");
-      return true;
-    }
-    if (parsed.choice === PROSE_CANCEL) {
-      if (messageId !== undefined) {
-        await api.editMessageText(chatId, messageId, "Cancelled.");
-      }
-      await api.answerCallback(update.id);
-      return true;
-    }
-    try {
-      const created = await executeNoteCombine(offer);
-      if (messageId !== undefined) {
-        await api.editMessageText(chatId, messageId, `Created Note ${created.slug}.\n${created.url}`);
-      }
-      await api.answerCallback(update.id);
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      if (messageId !== undefined) {
-        await api.editMessageText(chatId, messageId, detail);
-      }
-      await api.answerCallback(update.id);
-    }
     return true;
   }
 
@@ -153,77 +109,5 @@ export async function handleProseCallback(
     return true;
   }
 
-  if (parsed.kind === "note_delete") {
-    const offer = takeNoteDeleteOffer(parsed.nonce);
-    if (!offer) {
-      await api.answerCallback(update.id, "expired");
-      return true;
-    }
-    if (offer.senderId && update.from.id !== offer.senderId) {
-      storeNoteDeleteOffer(offer, parsed.nonce);
-      await api.answerCallback(update.id, "not your picker");
-      return true;
-    }
-    if (parsed.choice === PROSE_CANCEL) {
-      if (messageId !== undefined) {
-        await api.editMessageText(chatId, messageId, "Cancelled.");
-      }
-      await api.answerCallback(update.id);
-      return true;
-    }
-    try {
-      await executeNoteDelete(offer.slug);
-      if (messageId !== undefined) {
-        await api.editMessageText(chatId, messageId, `Deleted Note ${offer.slug}.`);
-      }
-      await api.answerCallback(update.id);
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      if (messageId !== undefined) {
-        await api.editMessageText(chatId, messageId, detail);
-      }
-      await api.answerCallback(update.id);
-    }
-    return true;
-  }
-
-  const offer = takeSheetActionOffer(parsed.nonce);
-  if (!offer) {
-    await api.answerCallback(update.id, "expired");
-    return true;
-  }
-  if (offer.senderId && update.from.id !== offer.senderId) {
-    storeSheetActionOffer(offer, parsed.nonce);
-    await api.answerCallback(update.id, "not your picker");
-    return true;
-  }
-  if (parsed.choice === PROSE_CANCEL) {
-    if (messageId !== undefined) {
-      await api.editMessageText(chatId, messageId, "Cancelled.");
-    }
-    await api.answerCallback(update.id);
-    return true;
-  }
-  if (parsed.choice === PROSE_DELETE_EXISTING) {
-    const refusal = sheetDeleteExistingRefusal(offer.sheet);
-    if (messageId !== undefined) {
-      await api.editMessageText(chatId, messageId, refusal);
-    }
-    await api.answerCallback(update.id);
-    return true;
-  }
-  const created = await createAndPinSheet(offer.sheet);
-  if (messageId !== undefined) {
-    if (created.ok) {
-      await api.editMessageText(
-        chatId,
-        messageId,
-        `Created and pinned ${sheetLabel(offer.sheet)} (${created.title}).`,
-      );
-    } else {
-      await api.editMessageText(chatId, messageId, created.message);
-    }
-  }
-  await api.answerCallback(update.id);
-  return true;
+  return false;
 }

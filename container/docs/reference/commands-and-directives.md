@@ -25,10 +25,9 @@ Whole-message phrasings (trailing `.!?` is fine):
 - **Calendar:** `calendar`, `what's on today|tomorrow|this week`, `schedule tomorrow`
 - **Tasks:** `tasks`, `my to-do list`
 - **Reminders:** `reminders`, `what reminders do I have` (Recurring jobs, Upcoming 7 days incl. family calendar, Tasks)
-- **Notes:** list, link, rename, delete and combine
-- **Sheets:** list, link, rename and actions; `spend` and `EV` summaries
-- **Undo:** `undo`, `undo that`, `undo last change` reverse the last Note change ("Undid note rename: ..." or "Nothing to undo.")
-- **Media:** OCR of the last photo; "make an image|video of ..." (MiniMax)
+- **Notes:** list
+- **Sheets:** list; `spend` and `EV` summaries
+- **Media:** OCR of the last photo
 
 Anything else (longer requests, writes, questions) goes to Claude.
 

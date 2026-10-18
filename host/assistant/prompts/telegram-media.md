@@ -15,6 +15,6 @@ None of these start an agent turn.
 - A photo with no caption stays remembered until that next text, `,list` or OCR.
 
 **Image generation**
-- Sole-line image prose (`generate an image of …`, `make a picture of …`, `draw me a photo of …`, `please create an illustration of …`, `imagegen …`, optional `can you` / `could you` / trailing `please`) runs MiniMax `image-01` and sends one photo. Do not call an image tool and do not curl MiniMax.
+- Image prose (`generate an image of …`, `make a picture of …`, `draw me a photo of …`, `please create an illustration of …`, `imagegen …`, optional `can you` / `could you` / trailing `please`) is a Claude turn. No image-generation tool exists now: say so, and do not curl MiniMax.
 - `,imagegen` / `,ig` reply `not a command`.
 - A second line, or a line with no image noun and no `imagegen`, stays a normal prompt.

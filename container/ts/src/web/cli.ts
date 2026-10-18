@@ -1,4 +1,5 @@
-import { completeWithProviders, HELPER_PROVIDERS, type ChatMessage } from "../assistant/fallback.js";
+import { completeWebHelper } from "../assistant/claude_helper.js";
+import type { ChatMessage } from "../assistant/fallback.js";
 import { formatWebSearchResults, webFetch, webSearch, type WebFetchResult, type WebSearchResult } from "../assistant/tools.js";
 import { capText } from "../assistant/web_content.js";
 
@@ -112,7 +113,7 @@ export async function runWebCli(args: string[], deps: WebCliDeps = {}): Promise<
   const search = deps.search ?? webSearch;
   const fetchPage = deps.fetchPage ?? webFetch;
   const complete =
-    deps.complete ?? ((messages: ChatMessage[], maxTokens: number) => completeWithProviders(messages, new AbortController().signal, { providers: HELPER_PROVIDERS, maxTokens }));
+    deps.complete ?? completeWebHelper;
   const [command, ...rest] = args;
   const parsed = parseArgs(rest);
   try {

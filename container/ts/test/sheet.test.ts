@@ -3,6 +3,7 @@ import test, { mock } from "node:test";
 import { utimesSync } from "node:fs";
 import path from "node:path";
 
+import { cardLabel, displayNames } from "../src/profile.js";
 import { appendNamed } from "../src/sheet/sheets.js";
 import { SHEET_LOCK_STALE_MS, withSheetWriteLock } from "../src/sheet/sheet_lock.js";
 import { spendCycle, normalizeSpendCard, spendDedupeKey } from "../src/sheet/spend_cycle.js";
@@ -143,4 +144,13 @@ test("sheet write lock refresh keeps a long write from going stale, so a second 
     mock.timers.reset();
     restoreEnv();
   }
+});
+
+test("normalizeSpendCard accepts ids, display names and the full label, rejects mismatches", () => {
+  const { owner2, card2 } = displayNames();
+  const expected = { owner: "owner2", card: "card2" };
+  assert.deepEqual(normalizeSpendCard("owner2", "card2"), expected);
+  assert.deepEqual(normalizeSpendCard(owner2.toUpperCase(), card2), expected);
+  assert.deepEqual(normalizeSpendCard("owner2", cardLabel("owner2", "card2")), expected);
+  assert.throws(() => normalizeSpendCard("owner1", "card2"), /unsupported owner\/card pair/);
 });

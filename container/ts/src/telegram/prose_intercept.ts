@@ -1,57 +1,18 @@
 import { recordingApi, recordInterceptExchange } from "./intercept_context.js";
-import { displayNames, vehicleName } from "../profile.js";
-import { undoLastChange } from "../memory/undo.js";
-import { tasksList, type CalendarEventJson, type TaskJson } from "../google/http.js";
-import { listMergedAgenda } from "../reminders/agenda.js";
-import { formatEventLines, formatRecurringLine, formatRemindersReply, formatTaskLines, sgtToday } from "../reminders/format.js";
-import { listCronJobs, type CronJob } from "../cron/store.js";
-import { matchReminderLookup, matchRemindersProse } from "./reminders_prose.js";
-import { calendarWindow, formatCalendarReply, formatTasksReply, matchAgendaProse } from "./agenda_prose.js";
+import { vehicleName } from "../profile.js";
 import type { TelegramApi, TelegramMessage } from "./api.js";
 import { attachedImageMime } from "./image_caption.js";
 import { soleNonemptyLineStripped } from "./prose_line.js";
-import {
-  applyNoteRename,
-  noteDeleteCard,
-  noteCombineMissingTargetReply,
-  noteLinkReply,
-  noteListReply,
-  parseNoteCombineDirective,
-  parseNoteDeleteDirective,
-  parseNoteLinkDirective,
-  parseNoteListDirective,
-  parseNoteRenameDirective,
-  planNoteCombine,
-  planNoteDelete,
-  resolveNoteSlug,
-} from "../note/note_prose.js";
-import {
-  applySheetRename,
-  parseSheetActionDirective,
-  parseSheetLinkDirective,
-  parseSheetListDirective,
-  parseSheetRenameDirective,
-  sheetLabel,
-  sheetActionCard,
-  sheetLinkReply,
-  sheetListReply,
-} from "../sheet/sheet_prose.js";
-import { matchImagegenProse } from "./imagegen_prose.js";
-import { matchVideogenProse } from "./videogen_prose.js";
-import { startVideogenJob } from "./videogen_job.js";
+import { noteListReply, parseNoteListDirective } from "../note/note_prose.js";
+import { parseSheetListDirective, sheetListReply } from "../sheet/sheet_prose.js";
 import { matchOcrProse } from "./ocr_prose.js";
-import { formatWeatherMessage } from "./weather.js";
-import { publishWeatherMessage } from "./weather_message.js";
-import { matchWeatherProse } from "./weather_prose.js";
-import { matchUndoProse, undoReply } from "./undo_prose.js";
 import { logIntercept, withTimeout } from "./intercept_log.js";
 import { type LinkListMessage } from "./link_list.js";
-import { buildEvAddKeyboard, buildNoteCombineKeyboard, buildSpendAddKeyboard, buildSpendEditKeyboard, storeEvAddOffer, storeSpendAddOffer, storeSpendEditOffer } from "./prose_callbacks.js";
+import { buildEvAddKeyboard, buildSpendAddKeyboard, buildSpendEditKeyboard, storeEvAddOffer, storeSpendAddOffer, storeSpendEditOffer } from "./prose_callbacks.js";
 import { previewSpendEntries, spendConfirmText, spendLabel, writeSpendEntries, type SpendAddDeps } from "./spend_add.js";
 import { planSpendEdit } from "./spend_edit.js";
 import type { SpendCard } from "../sheet/spend_cycle.js";
 import { deliverSegments } from "./deliver_segments.js";
-import { dateReply, matchDateProse } from "./date_prose.js";
 import { previewEvEntry, writeEvEntry, type EvAddDeps } from "./ev_add.js";
 import { evShowReply, parseEvAddDirective, parseEvShowDirective, type EvAddDirective } from "../sheet/ev_prose.js";
 import { parseSpendOps, parseSpendShowDirective, spendCardAsk, spendShowReply, type SpendAddEntry, type SpendOp } from "../sheet/spend_prose.js";
@@ -73,24 +34,18 @@ export function isConfirmYes(text: string): boolean {
 }
 
 export type ProseInterceptDeps = {
-  listEvents?: (startIso: string, endIso: string) => Promise<CalendarEventJson[]>;
-  listTasks?: () => Promise<TaskJson[]>;
-  listJobs?: () => CronJob[];
   downloadRememberedPhoto?: (chatId: number) => Promise<Buffer | null>;
   ocrImage?: (bytes: Buffer) => Promise<string>;
-  generateImage?: (prompt: string) => Promise<Buffer>;
-  generateVideo?: (prompt: string) => Promise<Buffer>;
-  formatWeather?: () => Promise<string>;
   spendAdd?: SpendAddDeps;
   evAdd?: EvAddDeps;
 };
 
-/** Timeout for the external reads (Google, weather, OCR) behind an instant reply. */
+/** Timeout for the external reads (Google, OCR) behind an instant reply. */
 const EXTERNAL_MS = 25_000;
 
 /**
- * Runs the first matching non-LLM intercept from INTERCEPTS (OCR, weather, agenda, reminders, imagegen,
- * videogen, the single-line note/sheet/spend directives, then spend add).
+ * Runs the first matching non-LLM intercept from INTERCEPTS (OCR, the single-line
+ * note/sheet/spend directives, then spend add).
  * Failures are logged and answered with a short error instead of escaping as a rejection.
  */
 export async function dispatchProseIntercept(
@@ -167,213 +122,14 @@ const INTERCEPTS: Intercept[] = [
     await api.sendMessage(chatId, await withTimeout(ocr(photo), 60_000, "ocr"));
     return true;
   }),
-  entry("weather", "text", matchWeatherProse, async ({ api, chatId, deps, state }) => {
-    state.name = "weather";
-    try {
-      const body = await withTimeout((deps.formatWeather ?? formatWeatherMessage)(), EXTERNAL_MS, "weather");
-      await publishWeatherMessage(api, chatId, body);
-    } catch (error) {
-      console.error("weather intercept failed", error);
-      await api.sendMessage(chatId, "Could not fetch Singapore weather.");
-    }
-    return true;
-  }),
-  entry("agenda", "text", matchAgendaProse, async ({ api, chatId, deps, state }, agenda) => {
-    state.name = "agenda";
-    try {
-      if (agenda.kind === "calendar") {
-        const window = calendarWindow(agenda.range);
-        const events = await withTimeout((deps.listEvents ?? ((start, end) => listMergedAgenda(start, end, 50)))(window.start, window.end), EXTERNAL_MS, "calendar");
-        await api.sendMessage(chatId, formatCalendarReply(events, agenda.range, window.firstDay));
-      } else {
-        await api.sendMessage(chatId, formatTasksReply(await withTimeout((deps.listTasks ?? (() => tasksList(100)))(), EXTERNAL_MS, "tasks")));
-      }
-    } catch (error) {
-      console.error("agenda intercept failed", error);
-      await api.sendMessage(chatId, agenda.kind === "calendar" ? "Could not fetch your calendar." : "Could not fetch your tasks.");
-    }
-    return true;
-  }),
-  entry("date", "text", matchDateProse, async ({ api, chatId, state }, offset) => {
-    state.name = "date";
-    await api.sendMessage(chatId, dateReply(offset));
-    return true;
-  }),
-  entry("reminders", "text", (t) => matchRemindersProse(t) || null, async ({ api, chatId, deps, state }) => {
-    state.name = "reminders";
-    try {
-      const from = new Date();
-      const [events, tasks] = await withTimeout(
-        Promise.all([
-          (deps.listEvents ?? ((start, end) => listMergedAgenda(start, end, 50)))(from.toISOString(), new Date(from.getTime() + 7 * 86_400_000).toISOString()),
-          (deps.listTasks ?? (() => tasksList(100)))(),
-        ]),
-        EXTERNAL_MS,
-        "reminders",
-      );
-      const jobs = (deps.listJobs ?? listCronJobs)().filter((job) => job.enabled && job.kind === "agent");
-      await api.sendMessage(chatId, formatRemindersReply({ jobs, events, tasks, now: from }));
-    } catch (error) {
-      console.error("reminders intercept failed", error);
-      await api.sendMessage(chatId, "Could not fetch your reminders.");
-    }
-    return true;
-  }),
-  entry("reminder_lookup", "text", matchReminderLookup, async ({ api, chatId, deps, state }, words) => {
-    const hit = (title: string) => words.every((w) => title.toLowerCase().includes(w));
-    try {
-      const from = new Date();
-      const [events, tasks] = await withTimeout(
-        Promise.all([
-          (deps.listEvents ?? ((start, end) => listMergedAgenda(start, end, 100)))(from.toISOString(), new Date(from.getTime() + 90 * 86_400_000).toISOString()),
-          (deps.listTasks ?? (() => tasksList(100)))(),
-        ]),
-        EXTERNAL_MS,
-        "reminders",
-      );
-      const jobs = (deps.listJobs ?? listCronJobs)().filter((job) => job.enabled && job.kind === "agent" && hit(job.name));
-      const evs = events.filter((e) => hit(e.summary ?? ""));
-      const tks = tasks.filter((t) => hit(t.title ?? ""));
-      if (!jobs.length && !evs.length && !tks.length) {
-        return false;
-      }
-      state.name = "reminder_lookup";
-      const lines = [
-        ...jobs.map((job) => formatRecurringLine(job, from)),
-        ...formatEventLines(evs, { withDay: true }),
-        ...formatTaskLines(tks, sgtToday(from)),
-      ];
-      await api.sendMessage(chatId, lines.join("\n"));
-      return true;
-    } catch (error) {
-      console.error("reminder lookup failed", error);
-      return false;
-    }
-  }),
-  entry("imagegen", "text", matchImagegenProse, async ({ api, chatId, deps, state }, imagePrompt) => {
-    state.name = "imagegen";
-    const generate = deps.generateImage;
-    if (!generate) {
-      return false;
-    }
-    await api.sendMessage(chatId, "Generating…");
-    const bytes = await generate(imagePrompt);
-    await api.sendPhoto(chatId, bytes, imagePrompt);
-    return true;
-  }),
-  entry("videogen", "text", matchVideogenProse, async ({ api, chatId, deps, state }, videoPrompt) => {
-    state.name = "videogen";
-    const generate = deps.generateVideo;
-    if (!generate) {
-      return false;
-    }
-    await startVideogenJob(api, chatId, videoPrompt, generate);
-    return true;
-  }),
-  entry("undo", "line", (l) => matchUndoProse(l) || null, async ({ api, chatId, state }) => {
-    state.name = "undo";
-    const result = await withTimeout(undoLastChange(`telegram:${chatId}`), EXTERNAL_MS, "undo");
-    await api.sendMessage(chatId, undoReply(result));
-    return true;
-  }),
   entry("note_list", "line", (l) => parseNoteListDirective(l) || null, async ({ api, chatId, state }) => {
     state.name = "note_list";
     await sendLinkList(api, chatId, await withTimeout(noteListReply(), EXTERNAL_MS, "note list"));
     return true;
   }),
-  entry("note_link", "line", (l) => parseNoteLinkDirective(l) || null, async ({ api, chatId, state }, target) => {
-    state.name = "note_link";
-    await api.sendMessage(chatId, await withTimeout(noteLinkReply(target), EXTERNAL_MS, "note link"));
-    return true;
-  }),
-  entry("note_combine", "line", (l) => parseNoteCombineDirective(l) || null, async ({ api, chatId, ownerId, state }, noteCombine) => {
-    state.name = "note_combine";
-    if (noteCombine.target === null) {
-      await api.sendMessage(chatId, noteCombineMissingTargetReply(noteCombine.left, noteCombine.right));
-      return true;
-    }
-    const plan = await withTimeout(planNoteCombine(noteCombine.left, noteCombine.right, noteCombine.target, ownerId ?? 0), EXTERNAL_MS, "note combine");
-    if (plan.kind === "invalid_target") {
-      await api.sendMessage(chatId, plan.message);
-      return true;
-    }
-    if (plan.kind === "source_missing") {
-      await api.sendMessage(chatId, "No matching source Note.");
-      return true;
-    }
-    if (plan.kind === "ambiguous") {
-      await api.sendMessage(chatId, `Ambiguous Note name (${plan.slugs.join(", ")}).`);
-      return true;
-    }
-    await api.sendMessage(chatId, plan.message, { reply_markup: buildNoteCombineKeyboard(plan.nonce) });
-    return true;
-  }),
-  entry("note_rename", "line", (l) => parseNoteRenameDirective(l) || null, async ({ api, chatId, state }, noteRename) => {
-    state.name = "note_rename";
-    const resolved = await withTimeout(resolveNoteSlug(noteRename.target), EXTERNAL_MS, "note rename");
-    if (resolved === null) {
-      await api.sendMessage(chatId, "No matching Note.");
-      return true;
-    }
-    if ("ambiguous" in resolved) {
-      await api.sendMessage(chatId, `Ambiguous Note name (${resolved.ambiguous.join(", ")}).`);
-      return true;
-    }
-    const result = await withTimeout(applyNoteRename(resolved.slug, noteRename.title), EXTERNAL_MS, "note rename");
-    if (result.ok) {
-      await api.sendMessage(chatId, `Renamed Google Doc: ${result.oldTitle} → ${result.title}`);
-    } else {
-      await api.sendMessage(chatId, result.message);
-    }
-    return true;
-  }),
-  entry("note_delete", "line", (l) => parseNoteDeleteDirective(l) || null, async ({ api, chatId, ownerId, state }, target) => {
-    state.name = "note_delete";
-    const plan = await withTimeout(planNoteDelete(target, ownerId ?? 0), EXTERNAL_MS, "note delete");
-    if (plan.kind === "refuse") {
-      await api.sendMessage(chatId, `Refusing to delete procedure Note: ${plan.slug}.`);
-      return true;
-    }
-    if (plan.kind === "ambiguous") {
-      await api.sendMessage(chatId, `Ambiguous Note name (${plan.slugs.join(", ")}).`);
-      return true;
-    }
-    if (plan.kind === "not_found") {
-      await api.sendMessage(chatId, "No matching Note.");
-      return true;
-    }
-    const card = noteDeleteCard(plan.slug, ownerId ?? 0);
-    await api.sendMessage(chatId, card.text, { reply_markup: card.reply_markup });
-    return true;
-  }),
   entry("sheet_list", "line", (l) => parseSheetListDirective(l) || null, async ({ api, chatId, state }) => {
     state.name = "sheet_list";
     await sendLinkList(api, chatId, await withTimeout(sheetListReply(), EXTERNAL_MS, "sheet list"));
-    return true;
-  }),
-  entry("sheet_link", "line", (l) => parseSheetLinkDirective(l) || null, async ({ api, chatId, state }, sheetLink) => {
-    state.name = "sheet_link";
-    await api.sendMessage(chatId, await withTimeout(sheetLinkReply(sheetLink), EXTERNAL_MS, "sheet link"));
-    return true;
-  }),
-  entry("sheet_rename", "line", (l) => parseSheetRenameDirective(l) || null, async ({ api, chatId, state }, sheetRename) => {
-    state.name = "sheet_rename";
-    const result = await withTimeout(applySheetRename(sheetRename.sheet, sheetRename.title), EXTERNAL_MS, "sheet rename");
-    if (result.ok) {
-      await api.sendMessage(chatId, `Renamed ${sheetLabel(result.sheet)} to ${result.title}.`);
-    } else {
-      await api.sendMessage(chatId, result.message);
-    }
-    return true;
-  }),
-  entry("sheet_action", "line", (l) => parseSheetActionDirective(l) || null, async ({ api, chatId, ownerId, state }, sheetAction) => {
-    if (sheetAction === "ask") {
-      await api.sendMessage(chatId, `Name ${displayNames().owner1}, ${displayNames().owner2}, ${vehicleName()}, or LLM pricing.`);
-      return true;
-    }
-    state.name = "sheet_action";
-    const card = sheetActionCard(sheetAction, ownerId ?? 0);
-    await api.sendMessage(chatId, card.text, { reply_markup: card.reply_markup });
     return true;
   }),
   entry("spend", "line", (l) => parseSpendShowDirective(l) || null, async ({ api, chatId, state }, spendShow) => {
