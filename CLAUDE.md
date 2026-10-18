@@ -19,6 +19,7 @@ Runtime rule files: `host/assistant/prompts/`; host helpers and hooks: `host/REA
 - Cursor was removed entirely; don't reintroduce it.
 - Code-rendered bot messages (cron reports, reminders) align with Daily Maintenance: first line `Title Ddd D Mon HH:MM` (Asia/Singapore, 24h, e.g. `Weekly Reminder Sat 10 Oct 07:00`), no `for`/dashes, then a blank line, then the body.
 - Reminders/alerts: follow "Keep every reminder aligned" in `host/assistant/prompts/reminders.md` (one home per item, Telegram only, code-rendered fixed lists, no new jobs in taken time slots).
+- Reuse first: `rg` for an existing helper or pattern before writing new code; write only what the task needs, but never cut validation, error handling or security. Review a changed or renamed field against its callers and untouched files, not just the diff.
 - Tests: key tests only, no cap: add every test a necessary behaviour needs, never an unimportant one: always prevent and remove non-key tests (prune trivial/duplicate tests on every change); every fixed bug gets a regression test. Read `container/docs/how-to/dev-setup.md` before adding or changing tests.
 
 ## Token routing (full form: `host/README.md` "Token routing"; enforced by `offload-guard`)
