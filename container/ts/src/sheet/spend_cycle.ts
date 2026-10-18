@@ -30,7 +30,7 @@ export const OWNER2_TX_HEADERS = [
 
 export type SpendCard = { owner: "owner1" | "owner2"; card: "card1" | "card2" };
 
-/** Accepts ids, display names ("Cass", "Dividend") or the full label, since prompts render display names. */
+/** Accepts ids, profile display names or the full label, since prompts render display names. */
 export function normalizeSpendCard(owner: string, card: string): SpendCard {
   const names = displayNames();
   const ownerKey = owner.trim().toLowerCase();
