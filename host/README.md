@@ -3,6 +3,8 @@
 Host-side tooling for working on melvbot with Claude Code. `bin/` is on `PATH`.
 
 ## Digest helpers
+**Disabled 2026-10-19:** `digest`, `dverify`, `dbuild`, `webx`, `dexplore` and `offload-guard` are no longer used or enforced (Sonnet 5.5 main, Haiku 5.5 `coder`; see CLAUDE.md "Model routing"). Scripts are kept for reversal; the notes below are historical.
+
 All of these condense output with a cheap model (MiniMax first, Groq if MiniMax fails) inside the `melvbot` container, so raw text never enters Claude's context. Secrets, emails and phones are masked first.
 - `digest "<what to extract>"`: condense a command's output, e.g. `digest --run "docker logs melvbot" "any errors?"`. Stdin also works, but under the strict sandbox a pipe runs sandboxed, where Docker is denied, so it falls back to the raw tail. `--raw` (or `DIGEST_RAW=1`, also honoured by `dverify`/`dbuild`) skips the model and prints the last 60 lines; if MiniMax and Groq both fail, the same raw tail is printed after a "digest unavailable" note on stderr, unless `DIGEST_STRICT=1` (prints nothing, exit 3; used by `dexplore`)
 - `digest` can invent file names and tests when asked to review many files at once; for code review, read the files (`rg`/`sed -n`) instead.
@@ -26,7 +28,7 @@ All of these condense output with a cheap model (MiniMax first, Groq if MiniMax 
 - `dsaved --review [days]`: one scorecard (default 7 days) = `--outcome` + top 5 `--sessions` + `--edits` + net helper savings per caller; run it first on any cost/optimisation request and act on rising $/commit, `!` sessions, or a helper with calls but no savings; no LLM
 - `dsaved --sessions [days]`: top 20 Claude Code sessions (subagents folded into their parent) by est $ at list prices, with start, assistant msgs and input / cache write / cache read / output, plus commits made during the session (UTC start..last msg; overlapping sessions both count a commit) and $/commit; long sessions show up as huge cache-read totals.
 
-## Token routing (full form of CLAUDE.md "Token routing")
+## Token routing (historical; tier 1 and `dexplore` disabled, see CLAUDE.md "Model routing")
 - Tier 0 non-LLM: `rg`, `head`/`tail`, `jq`, `sed -n`, `git diff --stat`.
 - Tier 1 MiniMax for reading/output over ~30 lines: `digest`, `dverify`, `dbuild`. Web: `webx ask` (one turn); `extract` for exact wording, `search` for link lists; if the container is down, say so.
 - Tier 2 main session edits fully specified changes directly, ≤50 lines per edit; no full-file Write, smallest unique Edit anchor.
