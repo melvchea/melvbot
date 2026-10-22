@@ -5,10 +5,8 @@ import { spawnSync } from "node:child_process";
 
 import { endPromptIdleSessions } from "../assistant/claude_session.js";
 import { dcaNoteBlock, fetchYahooQuote, prefetchRule, type Quote } from "../assistant/rule_prefetch.js";
-import { completeWithProviders, HELPER_PROVIDERS } from "../assistant/fallback.js";
 import { routedSearch } from "../assistant/search_router.js";
 import { appendNoteHistory, getNote } from "../note/notes.js";
-import { recordTurn } from "../assistant/conversation_store.js";
 import { runBackup } from "./backup.js";
 import { titleLine } from "../telegram/title_line.js";
 import { runTurn } from "../assistant/turn.js";
@@ -443,7 +441,7 @@ async function dcaWebSearch(): Promise<string> {
   }
 }
 
-/** Splits MiniMax's reply into the Telegram message and a one-line History entry; null when either block is missing or empty. */
+/** Splits the model reply into the Telegram message and a one-line History entry; null when either block is missing or empty. */
 export function parseDcaReply(reply: string): { telegram: string; noteEntry: string } | null {
   // MiniMax sometimes HTML-escapes the tags themselves.
   reply = reply.replace(/&lt;(\/?(?:telegram|note_entry))&gt;/g, "<$1>");
@@ -454,63 +452,27 @@ export function parseDcaReply(reply: string): { telegram: string; noteEntry: str
   return telegram && noteEntry ? { telegram, noteEntry } : null;
 }
 
-/** One turn_log row per DCA run (route light:minimax, tokens estimated at 4 chars), so dturns/dsaved see the prepaid path. */
-export function logDcaRun(started: number, ok: boolean, promptChars: number, replyChars: number): void {
-  try {
-    recordTurn({
-      chatKey: null,
-      source: "cron",
-      route: "light:minimax",
-      tools: [],
-      inputTokens: Math.round(promptChars / 4),
-      outputTokens: Math.round(replyChars / 4),
-      ms: Date.now() - started,
-      status: ok ? "ok" : "error",
-      prompt: "DCA market update",
-    });
-  } catch {
-    // Logging must never fail the cron run.
-  }
-}
-
-/** Retries fn on provider overload/rate-limit (HTTP 429/5xx) after each delay; other errors throw at once. */
-export async function retryTransient<T>(fn: () => Promise<T>, delaysMs: number[], sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))): Promise<T> {
-  for (const delay of delaysMs) {
-    try {
-      return await fn();
-    } catch (error) {
-      if (!/HTTP (429|5\d\d)\b/.test(error instanceof Error ? error.message : String(error))) {
-        throw error;
-      }
-      await sleep(delay);
-    }
-  }
-  return fn();
-}
-
-async function runDcaViaMinimax(prompt: string): Promise<{ ok: boolean; text: string }> {
-  const started = Date.now();
+async function runDcaViaHaiku(prompt: string): Promise<{ ok: boolean; text: string }> {
   try {
     const note = await getNote("dollar-cost-averaging");
     // The rule prefetch drops the note when its cached read fails; the plan verdict needs it.
     if (!prompt.includes('<note slug="dollar-cost-averaging"')) {
       prompt = `${prompt}\n${dcaNoteBlock(note)}\n`;
     }
-    // MiniMax is prepaid, so a malformed reply gets one retry instead of failing the run.
+    // A malformed reply gets one retry instead of failing the run.
     let parsed: ReturnType<typeof parseDcaReply> = null;
     let last = "";
     for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
-      const { text } = await retryTransient(() => completeWithProviders([{ role: "user", content: prompt }], AbortSignal.timeout(180_000), {
-        // MiniMax only, with a long timeout: the helper default (20s) is too short for the full reply, and Groq 413s on this prompt size.
-        providers: HELPER_PROVIDERS.filter((p) => p.name === "minimax").map((p) => ({ ...p, timeoutMs: 150_000 })),
-        maxTokens: 2000,
-      }), [20_000, 40_000]);
+      const reply = await runAssistantPrompt(prompt, true);
+      if (!reply.ok) {
+        return reply;
+      }
+      const text = reply.text;
       parsed = parseDcaReply(text);
       last = text;
     }
-    logDcaRun(started, parsed !== null, prompt.length, last.length);
     if (!parsed) {
-      return { ok: false, text: `MiniMax reply missing <telegram> or <note_entry> (${last.length} chars, ends: ${last.slice(-200)})` };
+      return { ok: false, text: `Haiku reply missing <telegram> or <note_entry> (${last.length} chars, ends: ${last.slice(-200)})` };
     }
     // Append one History line instead of rewriting the ~20k-char body (MiniMax truncated the full rewrite).
     await appendNoteHistory("dollar-cost-averaging", parsed.noteEntry, note.revision_id);
@@ -663,7 +625,7 @@ async function executeJob(job: CronJob): Promise<string> {
     await sendMorningUpdate(text, await tryBuildHeadsUpBlock(), dailyTasks, dailyNews);
     return text;
   } else if (isDcaJob(job)) {
-    // Searches, quotes and the DCA note are prefetched; one MiniMax call (prepaid) writes the message and the note body.
+    // Searches, quotes and the DCA note are prefetched; one Haiku turn writes the message and the note body.
     const [prefetch, extra] = await Promise.all([prefetchRule("stock market update").catch(() => null), dcaWebSearch()]);
     prompt = `${prompt.trimEnd()}\n\n${DCA_MINIMAX_INSTRUCTIONS}\n${prefetch?.block ?? ""}\n${extra}\n`;
     if (job.script) {
@@ -672,7 +634,7 @@ async function executeJob(job: CronJob): Promise<string> {
   } else if (job.script) {
     prompt = `${prompt.trimEnd()}\n\n## Script Output\n${runCronScript(job.script)}\n`;
   }
-  const { ok, text } = isDcaJob(job) ? await runDcaViaMinimax(prompt) : await runAssistantPrompt(prompt);
+  const { ok, text } = isDcaJob(job) ? await runDcaViaHaiku(prompt) : await runAssistantPrompt(prompt);
   if (!ok) {
     const message = `${job.name} failed: ${text || "agent produced no output"}`;
     await telegramNotify(message);
