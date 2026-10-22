@@ -473,6 +473,21 @@ export function logDcaRun(started: number, ok: boolean, promptChars: number, rep
   }
 }
 
+/** Retries fn on provider overload/rate-limit (HTTP 429/5xx) after each delay; other errors throw at once. */
+export async function retryTransient<T>(fn: () => Promise<T>, delaysMs: number[], sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))): Promise<T> {
+  for (const delay of delaysMs) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (!/HTTP (429|5\d\d)\b/.test(error instanceof Error ? error.message : String(error))) {
+        throw error;
+      }
+      await sleep(delay);
+    }
+  }
+  return fn();
+}
+
 async function runDcaViaMinimax(prompt: string): Promise<{ ok: boolean; text: string }> {
   const started = Date.now();
   try {
@@ -485,11 +500,11 @@ async function runDcaViaMinimax(prompt: string): Promise<{ ok: boolean; text: st
     let parsed: ReturnType<typeof parseDcaReply> = null;
     let last = "";
     for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
-      const { text } = await completeWithProviders([{ role: "user", content: prompt }], AbortSignal.timeout(180_000), {
+      const { text } = await retryTransient(() => completeWithProviders([{ role: "user", content: prompt }], AbortSignal.timeout(180_000), {
         // MiniMax only, with a long timeout: the helper default (20s) is too short for the full reply, and Groq 413s on this prompt size.
         providers: HELPER_PROVIDERS.filter((p) => p.name === "minimax").map((p) => ({ ...p, timeoutMs: 150_000 })),
         maxTokens: 2000,
-      });
+      }), [20_000, 40_000]);
       parsed = parseDcaReply(text);
       last = text;
     }

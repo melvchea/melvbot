@@ -3,7 +3,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";im
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 
-import { notifyReminderText, parseDcaReply, runCronOnce } from "../src/cron/run_once.js";
+import { notifyReminderText, parseDcaReply, retryTransient, runCronOnce } from "../src/cron/run_once.js";
 import { latestSlotToday, slotKey, todaysSlots } from "../src/cron/due.js";
 import { BACKUP_KEEP, backupRestoreReport, runBackup } from "../src/cron/backup.js";
 import { isMonthlyFromWeeklyPrompt, renderMonthlyFromWeekly } from "../src/cron/weekly_reminder.js";
@@ -186,4 +186,20 @@ test("backup alerts when a note lost over half its bytes or a sheet lost rows ag
     stub.restore();
     restoreEnv();
   }
+});
+
+test("retryTransient retries MiniMax 529 but not other errors", async () => {
+  const waits: number[] = [];
+  const sleep = async (ms: number) => void waits.push(ms);
+  let calls = 0;
+  const flaky = async () => {
+    if (++calls < 3) {
+      throw new Error("fallback failed: minimax HTTP 529");
+    }
+    return "ok";
+  };
+  assert.equal(await retryTransient(flaky, [20, 40], sleep), "ok");
+  assert.deepEqual(waits, [20, 40]);
+  await assert.rejects(retryTransient(async () => { throw new Error("minimax HTTP 401"); }, [20], sleep), /401/);
+  assert.equal(waits.length, 2);
 });
