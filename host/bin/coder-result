@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PostToolUse hook (Agent): log the coder subagent's final `VERIFY: pass|fail|none` line to edit-route.tsv as `coder-result` (see `dsaved --edits`).
+# PostToolUse hook (Agent): log the coder subagent's final `VERIFY: pass|fail|none` line to edit-route.tsv as `coder-result`.
 input=$(cat)
 [[ $(jq -r '.tool_input.subagent_type // ""' <<<"$input") == coder ]] || exit 0
 LOG=${XDG_STATE_HOME:-$HOME/.local/state}/melvbot/edit-route.tsv

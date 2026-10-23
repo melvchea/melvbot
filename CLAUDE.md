@@ -23,7 +23,7 @@ Runtime rule files: `host/assistant/prompts/`; host helpers and hooks: `host/REA
 - Tests: key tests only, no cap: add every test a necessary behaviour needs, never an unimportant one: always prevent and remove non-key tests (prune trivial/duplicate tests on every change); every fixed bug gets a regression test. Read `container/docs/how-to/dev-setup.md` before adding or changing tests.
 
 ## Model routing
-- Main session = Sonnet 5.5; sub-agent `coder` = Haiku 5.5 (medium). Non-LLM first (`rg`, `sed -n`, `jq`), edits ≤50 lines inline; `coder` after posting the spec and getting a yes, only when the spec costs far fewer tokens than the diff (mechanical/repeated patterns, heavy file reading). Never `fork`. The MiniMax helpers (`digest`, `dverify`, `dbuild`, `webx`, `dexplore`) and `offload-guard` are disabled (2026-10-19); scripts kept in `host/bin`.
+- Main session = Sonnet 5.5; sub-agent `coder` = Haiku 5.5 (medium). Non-LLM first (`rg`, `sed -n`, `jq`), edits ≤50 lines inline; `coder` after posting the spec and getting a yes, only when the spec costs far fewer tokens than the diff (mechanical/repeated patterns, heavy file reading). Never `fork`. The MiniMax helpers (`digest`, `dverify`, `dbuild`, `webx`) are disabled (2026-10-19); scripts kept in `host/bin`. `offload-guard` and `dexplore` were removed.
 
 ## Cost per completed outcome (full form: README "Cost rules"; review `!` rows in `dsaved --sessions`)
 - Batch open requests and decisions into one AskUserQuestion before any change. Before executing anything (edits, `coder`, deploy, commit), always end with a yes/no AskUserQuestion "Are all prompts and decisions in?" and act only on yes; a new request after that restarts the check. Verify (tsc + touched tests) before reporting done.

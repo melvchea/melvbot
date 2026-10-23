@@ -4,13 +4,11 @@
 #   dsaved --outcome [days]  Claude Code $ per day (list prices, cache writes at 5m rate) and git commits that day = $ per completed outcome; redos = fix/revert-subject commits re-touching a file changed <24h earlier
 #   dsaved --sessions [days] Claude Code per session (incl. subagents): start, msgs, input / cache write / cache read / output, est $ at list prices, commits during the session (UTC start..last msg), $/commit; top 20 by $
 #   dsaved --coder [days]    coder subagent runs: start, fixup (launched within 30 min of the previous coder), VERIFY result (pass|fail|none|unknown), task, with totals
-#   dsaved --edits [days]  code-edit routing per day (edit-route.tsv: Opus direct edits, denials, coder launches) next to Sonnet/Opus output tokens
-case ${1:-} in -h|--help) echo 'usage: dsaved [--edits|--outcome|--sessions] [days]  (--sessions: Claude Code per session start, msgs, tokens, est $, top 20 by $;--outcome: Claude Code $ per day at list prices / git commits that day = $ per commit;default: Claude Code CLI per day and model input / cache write / cache read / output tokens from transcripts, then helper report per day and caller: calls, raw KB, out KB, est tokens saved = (raw-out)/4, webx a fixed per-call credit (search 12800, extract 28000, ask 40800), then saved % of that day'"'"'s Claude tokens, then Telegram SDK Claude turns, input / output tokens and no-LLM intercepts per day from turn_log; --edits: per day Opus direct edits (count, lines), denied edits, coder launches from edit-route.tsv, plus Sonnet and Opus output tokens)'; exit 0 ;; esac
-edits=0 outcome=0 sessions=0 review=0 coder=0
+case ${1:-} in -h|--help) echo 'usage: dsaved [--outcome|--sessions] [days]  (--sessions: Claude Code per session start, msgs, tokens, est $, top 20 by $;--outcome: Claude Code $ per day at list prices / git commits that day = $ per commit;default: Claude Code CLI per day and model input / cache write / cache read / output tokens from transcripts, then helper report per day and caller: calls, raw KB, out KB, est tokens saved = (raw-out)/4, webx a fixed per-call credit (search 12800, extract 28000, ask 40800), then saved % of that day'"'"'s Claude tokens, then Telegram SDK Claude turns, input / output tokens and no-LLM intercepts per day from turn_log)'; exit 0 ;; esac
+outcome=0 sessions=0 review=0 coder=0
 if [[ ${1:-} == --coder ]]; then coder=1; shift; fi
 if [[ ${1:-} == --review ]]; then review=1; shift; fi
 if [[ ${1:-} == --sessions ]]; then sessions=1; shift; fi
-if [[ ${1:-} == --edits ]]; then edits=1; shift; fi
 if [[ ${1:-} == --outcome ]]; then outcome=1; shift; fi
 days=${1:-7}
 since_date=
@@ -23,7 +21,6 @@ fi
 if [[ $review == 1 ]]; then
   echo "== \$ per commit =="; "$0" --outcome "$days"
   echo; echo "== top 5 sessions (! = review) =="; "$0" --sessions "$days" | sed -n '1,7p'
-  echo; echo "== edit routing (fixup = coder within 30 min of the previous one, not a failure; sonnet/opus out = main-session model) =="; "$0" --edits "$days"
   echo; echo "== helper savings (est tokens, top callers) =="
   "$0" "$days" | awk '$2 ~ /^(d|t|webx|digest|direct)/ && $3 ~ /^[0-9]+$/ {s[$2]+=$6; n[$2]+=$3} END {for (k in s) printf "%-14s %5d calls %8d saved\n", k, n[k], s[k]}' | sort -k4 -nr | head -8
   exit 0
@@ -60,7 +57,7 @@ helper_call_usage() {
     elif .type == "tool_result" then ["R", .tool_use_id, (.content | tostring | length)] | @tsv
     else empty end' 2>/dev/null |
   awk -F'\t' '
-    $1 == "U" { if (match($4, /(^|[|;&( ])(dverify|dbuild|dexplore|dturns|ddeploy|webx|digest)( |$)/)) {
+    $1 == "U" { if (match($4, /(^|[|;&( ])(dverify|dbuild|dturns|ddeploy|webx|digest)( |$)/)) {
         h = substr($4, RSTART, RLENGTH); gsub(/[|;&( ]/, "", h); k = $3 "\t" h; who[$2] = k; n[k]++; cin[k] += length($4) } }
     $1 == "R" && ($2 in who) { cout[who[$2]] += $3 }
     END { for (k in n) printf "%s\t%d\t%d\t%d\n", k, n[k], cin[k]/4, cout[k]/4 }' | sort |
@@ -184,23 +181,6 @@ if (( outcome )); then
       }
       close("sort")
       printf "%-11s %9.2f %8d %6d %9s %7d %12s\n", "total", tu, tc, tr, tc ? sprintf("%.2f", tu / tc) : "-", tn, tc ? sprintf("%.0f", tn / tc) : "-"
-    }'
-  exit 0
-fi
-
-if (( edits )); then
-  elog=${XDG_STATE_HOME:-$HOME/.local/state}/melvbot/edit-route.tsv
-  {
-    [[ -f $elog ]] && awk -F'\t' -v since="$since" 'substr($1,1,10) >= since { print "E\t" substr($1,1,10) "\t" $2 "\t" $5 "\t" $1 }' "$elog"
-    claude_usage | awk -F'\t' '{ print "T\t" $1 "\t" $2 "\t" $6 }'
-  } | awk -F'\t' '
-    function secs(t) { return mktime(substr(t,1,4) " " substr(t,6,2) " " substr(t,9,2) " " substr(t,12,2) " " substr(t,15,2) " " substr(t,18,2)) }
-    $1 == "E" { d = $2; days[d] = 1; if ($3 == "opus-direct") { dn[d]++; dl[d] += $4 } else if ($3 == "denied") den[d]++; else if ($3 == "coder") { cn[d]++; s = secs($5); if (last && s - last <= 1800) fx[d]++; last = s } else if ($3 == "coder-result") { if ($4 == "pass") vp[d]++; else if ($4 == "fail") vf[d]++ } }
-    $1 == "T" { d = $2; days[d] = 1; if ($3 ~ /sonnet/) so[d] += $4; else if ($3 ~ /opus/) oo[d] += $4 }
-    function h(n) { return n >= 1e6 ? sprintf("%.2fM", n / 1e6) : sprintf("%.1fk", n / 1e3) }
-    END {
-      printf "%-11s %7s %7s %7s %8s %6s %6s %6s %12s %12s\n", "day", "direct", "lines", "denied", "coder", "pass", "fail", "fixup", "sonnet out", "opus out"
-      for (d in days) printf "%-11s %7d %7d %7d %8d %6d %6d %6d %12s %12s\n", d, dn[d], dl[d], den[d], cn[d], vp[d], vf[d], fx[d], h(so[d]), h(oo[d]) | "sort"
     }'
   exit 0
 fi
