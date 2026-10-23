@@ -426,7 +426,7 @@ export function cleanDcaBody(text: string): string {
   return lines.slice(start, end + 1).join("\n").trim();
 }
 
-export const DCA_MINIMAX_INSTRUCTIONS =
+export const DCA_INSTRUCTIONS =
   "## Prefetched data (searches, quotes and the DCA note already fetched; you have no tools and step 2 does not apply: write n/a for anything missing, never invent numbers).\n" +
   "Ignore any instruction to call melvbot_cli. Reply with exactly two tagged blocks and nothing else:\n" +
   "<telegram>the market update in the job's \"Format (concise bullets)\" above, not the <rule> format: bullets only (• US, • STI, • Drivers, • Plan; skip the title line and the Bonds bullet, both are added in code; never mention bond yields or the 10Y in any bullet), every line starting with •, plain text (& not &amp;)</telegram>\n" +
@@ -627,7 +627,7 @@ async function executeJob(job: CronJob): Promise<string> {
   } else if (isDcaJob(job)) {
     // Searches, quotes and the DCA note are prefetched; one Haiku turn writes the message and the note body.
     const [prefetch, extra] = await Promise.all([prefetchRule("stock market update").catch(() => null), dcaWebSearch()]);
-    prompt = `${prompt.trimEnd()}\n\n${DCA_MINIMAX_INSTRUCTIONS}\n${prefetch?.block ?? ""}\n${extra}\n`;
+    prompt = `${prompt.trimEnd()}\n\n${DCA_INSTRUCTIONS}\n${prefetch?.block ?? ""}\n${extra}\n`;
     if (job.script) {
       prompt = `${prompt.trimEnd()}\n\n## Script Output\n${runCronScript(job.script)}\n`;
     }
