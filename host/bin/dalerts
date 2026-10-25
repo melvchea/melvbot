@@ -3,12 +3,9 @@
 #   dalerts          needs `gh` auth (CI: GH_TOKEN + security-events: read); DALERTS_JSON overrides the API response (tests)
 case ${1:-} in -h|--help) echo 'usage: dalerts  (open code-scanning alerts by severity: "#n rule path:line"; exit 1 if any; ask a yes/no per severity before fixing)'; exit 0 ;; esac
 json=${DALERTS_JSON:-$(gh api --paginate "repos/melvchea/melvbot/code-scanning/alerts?state=open&per_page=100" 2>&1)} || { echo "dalerts: $json" >&2; exit 2; }
-info=$(jq -r '[.[] | select(.tool.name == "Scorecard")] | map("  #\(.number) \(.rule.id) \(.most_recent_instance.location.path)") | .[]' <<<"$json" 2>/dev/null)
-gate=$(jq 'map(select(.tool.name != "Scorecard"))' <<<"$json" 2>/dev/null) && json=$gate
 out=$(jq -r 'map({n: .number, sev: (.rule.security_severity_level // .rule.severity // "unknown"), rule: .rule.id,
     loc: "\(.most_recent_instance.location.path):\(.most_recent_instance.location.start_line)"})
   | group_by(.sev) | sort_by(.[0].sev as $s | ["critical","high","medium","low","warning","error","note","unknown"] | index($s))
   | .[] | "\(.[0].sev) (\(length))", (.[] | "  #\(.n) \(.rule) \(.loc)")' <<<"$json" 2>&1) || { echo "dalerts: bad response: $json" >&2; exit 2; }
 if [[ -z $out ]]; then echo "dalerts: no open alerts"; else echo "$out"; fi
-[[ -n $info ]] && printf 'scorecard (informational, not gating)\n%s\n' "$info"
 [[ -z $out ]]
