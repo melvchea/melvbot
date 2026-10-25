@@ -6,8 +6,8 @@ const PM25_URL = "https://api-open.data.gov.sg/v2/real-time/api/pm25";
 const FETCH_TIMEOUT_MS = 15_000;
 const USER_AGENT = "melvbot-weather/1.0";
 const SGT = "Asia/Singapore";
-const WEATHER_DAY_START_HOUR = 7;
-const WEATHER_DAY_END_HOUR = 21;
+const WEATHER_DAY_START_HOUR = 6;
+const WEATHER_DAY_END_HOUR = 22;
 const PM25_NORMAL_MAX = 55;
 const PM25_ELEVATED_MAX = 150;
 const PM25_HIGH_MAX = 250;
@@ -375,21 +375,8 @@ function pm25Range(pm25: Record<string, unknown> | null | undefined): { low: num
   return { low: Math.min(...values), high: Math.max(...values) };
 }
 
-export function shouldSendWeather(
-  hour: number,
-  band: string,
-  previousBand: string | null = null,
-  raining = false,
-  previousRaining = false,
-): boolean {
-  if (hour < WEATHER_DAY_START_HOUR || hour > WEATHER_DAY_END_HOUR) {
-    return false;
-  }
-  if (raining || band !== "Normal") {
-    return true;
-  }
-  const airCleared = previousBand !== null && previousBand !== "Normal";
-  return airCleared || previousRaining;
+export function shouldSendWeather(hour: number): boolean {
+  return hour >= WEATHER_DAY_START_HOUR && hour <= WEATHER_DAY_END_HOUR;
 }
 
 function windowHours(raining: boolean, band: string): number {

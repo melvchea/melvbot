@@ -20,7 +20,7 @@ always: true
 - Telegram is the only alert channel: no Google popups; the must-not-miss timed items use `--reminder`.
 - A Task's due date is its real date; put any lead time in the title (e.g. "start 1 week before"). Do not move the due date earlier, and the 19:15 sweep is the only Task notification. Undated Tasks never alert; give them a date.
 - Messages follow the `Title Ddd D Mon HH:MM` header (CLAUDE.md). Avoid 07:00-07:45, 19:00 and 22:45-23:00 for new jobs; those slots are taken. Sunday 05:30 (`30 5 * * 0`, kind `backup`) is the weekly backup: silent on success, Telegram alert only on failure.
-- Weather posts only for rain or non-normal PM2.5, plus the all-clear.
+- Weather posts every hour 06:00-22:00 SGT (`0 6-22 * * *`), whatever the rain or PM2.5.
 
 Mutate Tasks/Calendar only if asked this turn. To amend an entry, list first and match by title and date; if several match, ask which.
 

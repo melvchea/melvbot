@@ -25,10 +25,10 @@ test("morning update deletes every message of the prior run and records the new 
   assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { chatId: 1, messageIds: [20, 21] });
 });
 
-test("hourly weather posts only for rain or non-normal PM2.5, plus the all-clear", () => {
-  assert.equal(shouldSendWeather(11, "Normal"), false);
-  assert.equal(shouldSendWeather(11, "Normal", null, true), true);
-  assert.equal(shouldSendWeather(11, "Elevated"), true);
-  assert.equal(shouldSendWeather(11, "Normal", "Elevated"), true);
-  assert.equal(shouldSendWeather(22, "Elevated"), false);
+test("hourly weather posts every hour 06:00-22:00 SGT regardless of rain or PM2.5", () => {
+  assert.equal(shouldSendWeather(6), true);
+  assert.equal(shouldSendWeather(11), true);
+  assert.equal(shouldSendWeather(22), true);
+  assert.equal(shouldSendWeather(5), false);
+  assert.equal(shouldSendWeather(23), false);
 });

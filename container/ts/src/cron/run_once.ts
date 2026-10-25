@@ -530,7 +530,7 @@ async function executeJob(job: CronJob): Promise<string> {
       band: measured ?? previous.band,
       raining: nowcastOk ? raining : previous.raining,
     };
-    if (!shouldSendWeather(hour, band, previousBand, raining, previous.raining)) {
+    if (!shouldSendWeather(hour)) {
       writeWeatherWatch(nextWatch);
       return SILENT_OUTPUT;
     }
