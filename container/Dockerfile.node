@@ -21,11 +21,15 @@ RUN npm run build
 
 FROM base AS runtime
 
+# The runtime never runs npm; the build stages keep it. Upgrade patches OS CVEs the pinned base digest lacks.
+# hadolint ignore=DL3005
 RUN --network=host \
     --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx && \
     rm -f /etc/apt/apt.conf.d/docker-clean && \
     apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends ca-certificates && \
     if id -u melvbot >/dev/null 2>&1; then :; \
     elif id -u 1000 >/dev/null 2>&1; then \
