@@ -11,6 +11,7 @@ import { logIntercept } from "./telegram/intercept_log.js";
 import { statusText } from "./telegram/status.js";
 import { dispatchProseIntercept, isConfirmYes } from "./telegram/prose_intercept.js";
 import { deleteQuotedStaleWeather } from "./telegram/weather_message.js";
+import { sendEphemeral } from "./telegram/ephemeral.js";
 import { attachedImageMime, dispatchImageCaption, isImageActionRequest, readImageForTurn } from "./telegram/image_caption.js";
 import { attachedVideo, dispatchVideoCaption } from "./telegram/video_caption.js";
 import { handleProseCallback } from "./telegram/prose_callback_handler.js";
@@ -355,7 +356,7 @@ async function handleCommand(
   }
   if (command === "new") {
     await promoteAndClear(chatKeyFor(chatId));
-    await api.sendMessage(chatId, "Started fresh.");
+    await sendEphemeral(api, chatId, "Started fresh.");
     if (args.trim()) {
       await processTextWithoutCommaCheck(api, msg, args, false);
     }
