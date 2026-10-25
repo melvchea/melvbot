@@ -113,7 +113,7 @@ export function digestSlotFromSchedule(schedule: string): "morning" | "evening" 
   if (hour === 7 && minute === 45) {
     return "morning";
   }
-  if (hour === 20 && minute === 0) {
+  if (hour === 19 && minute === 45) {
     return "evening";
   }
   throw new Error(`unsupported outlook digest schedule: ${schedule}`);
