@@ -496,6 +496,7 @@ const MELVBOT_CLI_DESCRIPTION =
       "(old text must occur once); never re-send the whole body with note add for a small edit. Reference prices may sit in the body; payments go to sheet spend add. Spend batches: one call takes several rows, ['sheet', 'spend', 'add', '--owner', O, '--card', C, d1, m1, a1, d2, m2, a2], and amend+add is one call with '--void', '<id>' (repeatable, Confirm tap) before the rows; 'sheet spend void' also takes several ids. For a new free-form Sheet (optionally linked from a Note) use ['sheet', 'create', '<title>', '--note', '<slug>', '--tab', '<name>:<col1>,<col2>'] (--tab repeatable). For one dated line under ## History, use " +
       '["note", "append-history", "<slug>", "<text>", "--expect-rev", "<revision_id>"] instead of replacing the body. ' +
       "On an existing Note, pass --expect-rev from note get's revision_id on note add, describe, and append-history. " +
+      'To only add a tag use ["note", "describe", "<slug>", "--add-tag", "<tag>", "--expect-rev", "<revision_id>"] (use_when stays unchanged). ' +
       "Every Note write changes the revision: for a second write to the same Note in one turn, use the receipt's revisionId " +
       "from the previous write (or run note get again), never the earlier revision_id. " +
       "`house-rules`/`about-me` always need a Confirm " +

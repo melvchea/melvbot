@@ -8,6 +8,7 @@ import {
   assertHouseRulesSize,
   overwriteGuardError,
   replaceNoteSection,
+  resolveDescribeUseWhen,
 } from "../src/note/notes.js";
 import { trashDriveFile } from "../src/note/notes_google.js";
 import { setMelvbotEnv } from "./helpers/env.js";
@@ -36,6 +37,12 @@ test("overwrite guard skips a Doc this call just created but refuses an already-
   // pinned slug without --expect-rev -> refused with the re-read instruction; with it -> allowed
   assert.match(overwriteGuardError("old-note", "rev1", {}) ?? "", /already exists.*re-read the note \(note get\) and retry/);
   assert.equal(overwriteGuardError("old-note", "rev1", { expectRevisionId: "rev1" }), null);
+});
+
+test("a tag-only describe keeps the current use_when instead of overwriting it", () => {
+  assert.equal(resolveDescribeUseWhen(undefined, ["time-sensitive"], "Use when comparing phones."), "Use when comparing phones.");
+  assert.equal(resolveDescribeUseWhen("New text", ["x"], "old"), "New text");
+  assert.throws(() => resolveDescribeUseWhen(undefined, [], "old"), /use_when must not be empty/);
 });
 
 test("note delete trashes the Doc via PATCH trashed, never a permanent Drive DELETE", async () => {

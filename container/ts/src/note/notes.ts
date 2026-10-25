@@ -345,18 +345,27 @@ export async function addNote(options: {
   }
 }
 
+/** A tag-only describe keeps the Note's current use_when; otherwise a new one is required. */
+export function resolveDescribeUseWhen(useWhen: string | undefined, addTags: string[], current: string): string {
+  const cleaned = useWhen?.trim();
+  if (cleaned) {
+    return cleaned;
+  }
+  if (addTags.length > 0) {
+    return current;
+  }
+  throw new Error("use_when must not be empty");
+}
+
 export async function describeNote(
   slug: string,
-  useWhen: string,
+  useWhen: string | undefined,
   addTags: string[] = [],
   expectRevisionId?: string,
 ): Promise<Awaited<ReturnType<typeof getNote>>> {
   const cleaned = validateSlug(slug);
-  const cleanedUseWhen = useWhen.trim();
-  if (!cleanedUseWhen) {
-    throw new Error("use_when must not be empty");
-  }
   const existing = await getNote(cleaned);
+  const cleanedUseWhen = resolveDescribeUseWhen(useWhen, addTags, existing.use_when);
   if (expectRevisionId === undefined) {
     throw new Error(
       `note ${cleaned}: re-read the note (note get) and retry with --expect-rev before describe`,

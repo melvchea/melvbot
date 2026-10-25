@@ -156,10 +156,11 @@ export async function runNoteCli(args: string[]): Promise<number> {
       const rest = args.slice(1);
       const names = ["--add-tag", "--expect-rev"];
       const [slug, useWhen] = positionals(rest, names);
-      if (!slug || !useWhen) {
+      const addTags = flags(rest, "--add-tag");
+      if (!slug || (!useWhen && addTags.length === 0)) {
         return usage();
       }
-      writeJson(await describeNote(slug, useWhen, flags(rest, "--add-tag"), flag(rest, "--expect-rev")));
+      writeJson(await describeNote(slug, useWhen, addTags, flag(rest, "--expect-rev")));
       return 0;
     }
     if (args[0] === "replace-section") {
