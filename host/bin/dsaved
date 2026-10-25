@@ -7,6 +7,11 @@ outcome=0 sessions=0 review=0
 if [[ ${1:-} == --review ]]; then review=1; shift; fi
 if [[ ${1:-} == --sessions ]]; then sessions=1; shift; fi
 if [[ ${1:-} == --outcome ]]; then outcome=1; shift; fi
+# List prices (USD/MTok: in out cache-write-5m cache-read) from `dprices`' prices.tsv; the defaults apply until it has run.
+prices=${XDG_STATE_HOME:-$HOME/.local/state}/melvbot/prices.tsv
+rate() { awk -F'\t' -v m="$1" -v d="$2" '$1 == m { d = $2 " " $3 " " $4 " " $6 } END { print d }' "$prices" 2>/dev/null || echo "$2"; }
+RATE_OPUS=$(rate opus "4 20 5 0.2") RATE_SONNET=$(rate sonnet "2 10 2.5 0.1") RATE_HAIKU=$(rate haiku "0.1 0.5 0.125 0.01")
+export RATE_OPUS RATE_SONNET RATE_HAIKU
 days=${1:-7}
 since_date=
 if [[ $days =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
@@ -68,7 +73,7 @@ session_usage() {
     END {
       for (id in sid) {
         m = mdl[id]
-        if (m ~ /opus/) { pi = 4; pw = 5; pr = 0.2; po = 20 } else if (m ~ /sonnet/) { pi = 2; pw = 2.5; pr = 0.1; po = 10 } else if (m ~ /haiku-5/) { pi = 0.1; pw = 0.125; pr = 0.01; po = 0.5 } else { pi = 1; pw = 1.25; pr = 0.1; po = 5 }
+        if (m ~ /opus/) { split(ENVIRON["RATE_OPUS"], q, " "); pi = q[1]; po = q[2]; pw = q[3]; pr = q[4] } else if (m ~ /sonnet/) { split(ENVIRON["RATE_SONNET"], q, " "); pi = q[1]; po = q[2]; pw = q[3]; pr = q[4] } else if (m ~ /haiku-5/) { split(ENVIRON["RATE_HAIKU"], q, " "); pi = q[1]; po = q[2]; pw = q[3]; pr = q[4] } else { pi = 1; pw = 1.25; pr = 0.1; po = 5 }
         k = sid[id]
         if (!(k in st) || ts[id] < st[k]) st[k] = ts[id]
         if (ts[id] > en[k]) en[k] = ts[id]
@@ -123,9 +128,9 @@ if (( outcome )); then
     $1 == "R" { r[$2]++; next }
     {
       day = $2; m = $3; d[day] = 1
-      if (m ~ /opus/) { pi = 4; po = 20; pw = 5; pr = 0.2 }
-      else if (m ~ /sonnet/) { pi = 2; po = 10; pw = 2.5; pr = 0.1 }
-      else if (m ~ /haiku-5/) { pi = 0.1; po = 0.5; pw = 0.125; pr = 0.01 }
+      if (m ~ /opus/) { split(ENVIRON["RATE_OPUS"], q, " "); pi = q[1]; po = q[2]; pw = q[3]; pr = q[4] }
+      else if (m ~ /sonnet/) { split(ENVIRON["RATE_SONNET"], q, " "); pi = q[1]; po = q[2]; pw = q[3]; pr = q[4] }
+      else if (m ~ /haiku-5/) { split(ENVIRON["RATE_HAIKU"], q, " "); pi = q[1]; po = q[2]; pw = q[3]; pr = q[4] }
       else { pi = 1; po = 5; pw = 1.25; pr = 0.1 }
       calls[day] += $8
       usd[day] +=($4 * pi + $5 * pw + $6 * pr + $7 * po) / 1e6

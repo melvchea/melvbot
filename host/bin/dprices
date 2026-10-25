@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Refresh API list prices (USD/MTok) for Opus/Sonnet/Haiku 5.5 into ~/.local/state/melvbot/prices.tsv, at most once per day (Asia/Singapore).
+#   dprices [--force]   columns: model in out cache_write_5m cache_write_1h cache_read; read by dsaved. SessionStart hook runs it; silent on failure. No LLM.
+case ${1:-} in -h|--help) sed -n 2,3p "$0" | cut -c3-; exit 0 ;; esac
+dir=${XDG_STATE_HOME:-$HOME/.local/state}/melvbot
+out=$dir/prices.tsv
+today=$(TZ=Asia/Singapore date +%F)
+[[ ${1:-} == --force ]] || [[ $(TZ=Asia/Singapore date -r "$out" +%F 2>/dev/null) != "$today" ]] || exit 0
+mkdir -p -- "$dir" || exit 0
+page=$(curl -sfL -m 20 https://platform.claude.com/docs/en/about-claude/pricing) || exit 0
+tmp=$(mktemp -p "$dir") || exit 0
+sed -e 's/<[^>]*>/ /g' <<<"$page" | tr -s ' \n' ' ' | python3 -I -c '
+import re, sys
+t = sys.stdin.read()
+rows = []
+for m in ("Opus", "Sonnet", "Haiku"):
+    r = re.search(r"Claude %s 5\.5 [^$]{5,160}?((?:\$[0-9.]+ / MTok(?: for prompts up to [0-9,]+ tokens)? ?){5})" % m, t)
+    if not r:
+        sys.exit(1)
+    rows.append([m.lower()] + re.findall(r"\$([0-9.]+)", r.group(1)))
+for row in rows:
+    print("\t".join(row))
+' >"$tmp" && [[ $(wc -l <"$tmp") -eq 3 ]] && mv -- "$tmp" "$out" || rm -f -- "$tmp"
+exit 0
