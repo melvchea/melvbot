@@ -1,3 +1,4 @@
+import { cardLabel } from "../profile.js";
 import { evIntervalCondition, headroomCondition, isNoteStale, spendGapCondition } from "./conditions.js";
 import { isQuietHour, markNudgeFired, shouldShowNudge } from "./store.js";
 import type { NudgesToml } from "./toml.js";
@@ -117,8 +118,18 @@ export function buildHeadsUpBlock(input: HeadsUpInput): BundleBlock | null {
 export type StaleNoteInput = { slug: string; updatedAt: string; tags: string[] };
 export type AutoHistoryCount = { slug: string; count: number };
 
+export type CycleSpendTotal = {
+  owner: "owner1" | "owner2";
+  card: "card1" | "card2";
+  total: number;
+  target: number;
+  cycleEnd: string;
+};
+
 export type MonthlyReviewInput = {
   notes: StaleNoteInput[];
+  /** Totals of the cycle containing the day before the review; owner2's may still be open. */
+  lastCycleSpend?: CycleSpendTotal[];
   houseRulesBulletCount: number;
   autoHistoryEntries: AutoHistoryCount[];
   episodeCount?: number;
@@ -144,6 +155,13 @@ export function buildMonthlyReviewBlock(input: MonthlyReviewInput): BundleBlock 
   const period = monthKey(input.now);
   const lines: string[] = [];
   const buttons: NudgeButton[] = [];
+
+  for (const spend of input.lastCycleSpend ?? []) {
+    const verdict = spend.total >= spend.target ? "met" : "short";
+    lines.push(
+      `${cardLabel(spend.owner, spend.card)}: $${spend.total.toFixed(0)} of $${spend.target.toFixed(0)} Target, ${verdict} (cycle to ${spend.cycleEnd})`,
+    );
+  }
 
   const staleSlugs = input.notes
     .filter((note) => isNoteStale({ updatedAt: note.updatedAt, tags: note.tags, now: input.now }))

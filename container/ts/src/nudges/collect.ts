@@ -8,7 +8,7 @@ import { getNote, listNotes } from "../note/notes.js";
 import { listEv } from "../sheet/ev_list.js";
 import { parseMoney } from "../sheet/spend_cycle.js";
 import { listSpend } from "../sheet/spend_list.js";
-import type { AutoHistoryCount, HeadsUpCardInput, HeadsUpInput, MonthlyReviewInput, StaleNoteInput } from "./bundle.js";
+import type { AutoHistoryCount, CycleSpendTotal, HeadsUpCardInput, HeadsUpInput, MonthlyReviewInput, StaleNoteInput } from "./bundle.js";
 import { lastReviewedAt } from "./store.js";
 import type { NudgesToml } from "./toml.js";
 
@@ -64,7 +64,18 @@ export async function collectHeadsUpInput(toml: NudgesToml, now: Date, dbPath?: 
   return { cards, ev, toml, now, dbPath };
 }
 
+async function lastCycleSpend(owner: "owner1" | "owner2", card: "card1" | "card2", now: Date): Promise<CycleSpendTotal> {
+  const yesterday = ymd(new Date(now.getTime() - 86_400_000));
+  const summary = await listSpend({ owner, card, cycleDate: yesterday });
+  return { owner, card, total: parseMoney(summary.total), target: parseMoney(summary.target), cycleEnd: summary.cycle_end };
+}
+
 export async function collectMonthlyReviewInput(toml: NudgesToml, now: Date, dbPath?: string): Promise<MonthlyReviewInput> {
+  // A sheet failure must not block the rest of the monthly review.
+  const lastCycleSpendTotals = await Promise.all([
+    lastCycleSpend("owner1", "card1", now),
+    lastCycleSpend("owner2", "card2", now),
+  ].map((pending) => pending.catch(() => null)));
   const index = await listNotes();
   const notes: StaleNoteInput[] = index.map((note) => ({ slug: note.slug, updatedAt: note.updated_at, tags: note.tags }));
 
@@ -94,6 +105,7 @@ export async function collectMonthlyReviewInput(toml: NudgesToml, now: Date, dbP
 
   return {
     notes,
+    lastCycleSpend: lastCycleSpendTotals.filter((entry): entry is CycleSpendTotal => entry !== null),
     houseRulesBulletCount,
     autoHistoryEntries,
     episodeCount: countEpisodes(dbPath),

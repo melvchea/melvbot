@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildHeadsUpBlock } from "../../src/nudges/bundle.js";
+import { buildHeadsUpBlock, buildMonthlyReviewBlock } from "../../src/nudges/bundle.js";
 import { markNudgeDone } from "../../src/nudges/store.js";
 import { parseNudgesSection } from "../../src/nudges/toml.js";
 import { tempDbPath } from "../helpers/temp.js";
@@ -55,4 +55,21 @@ test("a bundle run in quiet hours holds every nudge for the next bundle", () => 
     dbPath,
   });
   assert.equal(block, null);
+});
+
+test("the monthly review lists each card's last-cycle total against its Target", () => {
+  const block = buildMonthlyReviewBlock({
+    notes: [],
+    lastCycleSpend: [
+      { owner: "owner1", card: "card1", total: 700, target: 625, cycleEnd: "2026-09-30" },
+      { owner: "owner2", card: "card2", total: 500, target: 800, cycleEnd: "2026-10-14" },
+    ],
+    houseRulesBulletCount: 0,
+    autoHistoryEntries: [],
+    toml,
+    now: new Date("2026-10-01T00:00:00Z"),
+  });
+  assert.ok(block);
+  assert.match(block.text, /\$700 of \$625 Target, met \(cycle to 2026-09-30\)/);
+  assert.match(block.text, /\$500 of \$800 Target, short/);
 });
