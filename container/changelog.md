@@ -5,9 +5,9 @@
 ### changes
 
 - `Dockerfile.node` has a `HEALTHCHECK` (`melvbot doctor` every 5 min); CI gained shellcheck, hadolint and dependency-review jobs plus a weekly Trivy and Scorecard workflow; `ddeploy` refuses a dirty tracked tree, tags `melvbot-ts:<sha>` and prints its run time
-- web pages are cached 1h by normalised URL in the conversation DB (`page_cache`) and in memory; `webFetch`, `webx extract|ask` and the Telegram web_fetch tool share it; errors and empty pages are not cached
+- web pages are cached 1h by normalised URL in the conversation DB (`page_cache`) and in memory; `webFetch` and the Telegram web_fetch tool share it; errors and empty pages are not cached
+- remove the `melvbot web`, `digest` and `ask` commands and the host `digest`, `webx` and `coder` helpers
 - monthly call counters for Firecrawl and Bright Data (`web_quota`), limits `WEB_QUOTA_FIRECRAWL` (500) and `WEB_QUOTA_BRIGHTDATA` (5000), `WEB_QUOTA_BRAVE` (1000); a provider is skipped only at its limit or after a 402/429 until month end; counts shown in `doctor` and `status`
-- `webx ask` skips the digest model call when the fetched sources total under 1500 chars and prints them directly
 - web search is Kagi (`KAGI_SESSION_LINK`, HTML results scraped in-process in `providers/kagi_search.ts`), then Brave (`BRAVE_SEARCH_API_KEY`), then Firecrawl search; `SEARCH_PROVIDERS` takes `kagi`, `brave`, `firecrawl`; `SEARCH_HEDGE_MS` is gone
 - page reads are Firecrawl scrape (`FIRECRAWL_API_KEY`), then Bright Data Web Unlocker (`BRIGHTDATA_API_KEY`, `BRIGHTDATA_ZONE`), then in-process fetch; the websrchfetchd sidecar is removed (Go code, headless Chrome and its `/fetch`, `/fetch/batch` and `/search` endpoints)
 - remove the MiniMax search provider, the `search_watch` sidecar alerts and the web_fetch batch call; web search no longer returns a Quick answer line

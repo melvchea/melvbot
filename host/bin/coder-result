@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-# PostToolUse hook (Agent): log the coder subagent's final `VERIFY: pass|fail|none` line to edit-route.tsv as `coder-result`.
-input=$(cat)
-[[ $(jq -r '.tool_input.subagent_type // ""' <<<"$input") == coder ]] || exit 0
-LOG=${XDG_STATE_HOME:-$HOME/.local/state}/melvbot/edit-route.tsv
-text=$(jq -r '.tool_response | if type == "string" then . else ([.. | strings] | join("\n")) end' <<<"$input" 2>/dev/null)
-res=$(grep -oE 'VERIFY: *(pass|fail|none)' <<<"$text" | tail -1 | sed -E 's/VERIFY: *//')
-desc=$(jq -r '.tool_input.description // "" | gsub("[\t\n]";" ")' <<<"$input")
-{ mkdir -p -- "$(dirname "$LOG")" && printf '%s\tcoder-result\tAgent\t%s\t%s\n' "$(date -Iseconds)" "$desc" "${res:-unknown}" >>"$LOG"; } 2>/dev/null || true

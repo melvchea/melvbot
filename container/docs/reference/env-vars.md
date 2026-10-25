@@ -27,4 +27,4 @@ Set in `/etc/melvbot/melvbot.env` (root-only) and injected by Docker Compose.
 | `MELVBOT_PROMPTS_DIR` | Rule files (mounted from `host/assistant/prompts`). |
 | `MELVBOT_WORKSPACE` | Workspace root (`/workspace`). |
 
-Monthly counts are kept in the conversation DB (`web_quota`, `brave_usage`) and shown by `doctor` and `status`. Providers are skipped only at their limit or after a 402/429, not spread across the month. Fetched pages are cached there for 1 hour by URL (`page_cache`), so a repeat `webx`/`web_fetch` skips the providers.
+Monthly counts are kept in the conversation DB (`web_quota`, `brave_usage`) and shown by `doctor` and `status`. Providers are skipped only at their limit or after a 402/429, not spread across the month. Fetched pages are cached there for 1 hour by URL (`page_cache`), so a repeat `web_fetch` skips the providers.

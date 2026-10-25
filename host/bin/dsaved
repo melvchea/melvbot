@@ -2,10 +2,8 @@
 #   dsaved [days]            Claude Code token usage per day and model (transcripts), then Telegram SDK turns (turn_log); no LLM
 #   dsaved --outcome [days]  Claude Code $ per day (list prices, cache writes at 5m rate) and git commits that day = $ per completed outcome; redos = fix/revert-subject commits re-touching a file changed <24h earlier
 #   dsaved --sessions [days] Claude Code per session (incl. subagents): start, msgs, input / cache write / cache read / output, est $ at list prices, commits during the session (UTC start..last msg), $/commit; top 20 by $
-#   dsaved --coder [days]    coder subagent runs: start, fixup (launched within 30 min of the previous coder), VERIFY result (pass|fail|none|unknown), task, with totals
-case ${1:-} in -h|--help) echo 'usage: dsaved [--outcome|--sessions|--review|--coder] [days]  (--sessions: Claude Code per session start, msgs, tokens, est $, top 20 by $;--outcome: Claude Code $ per day at list prices / git commits that day = $ per commit;default: Claude Code CLI per day and model input / cache write / cache read / output tokens from transcripts, then Telegram SDK Claude turns, input / output tokens and no-LLM intercepts per day from turn_log)'; exit 0 ;; esac
-outcome=0 sessions=0 review=0 coder=0
-if [[ ${1:-} == --coder ]]; then coder=1; shift; fi
+case ${1:-} in -h|--help) echo 'usage: dsaved [--outcome|--sessions|--review] [days]  (--sessions: Claude Code per session start, msgs, tokens, est $, top 20 by $;--outcome: Claude Code $ per day at list prices / git commits that day = $ per commit;default: Claude Code CLI per day and model input / cache write / cache read / output tokens from transcripts, then Telegram SDK Claude turns, input / output tokens and no-LLM intercepts per day from turn_log)'; exit 0 ;; esac
+outcome=0 sessions=0 review=0
 if [[ ${1:-} == --review ]]; then review=1; shift; fi
 if [[ ${1:-} == --sessions ]]; then sessions=1; shift; fi
 if [[ ${1:-} == --outcome ]]; then outcome=1; shift; fi
@@ -23,24 +21,6 @@ if [[ $review == 1 ]]; then
   exit 0
 fi
 since=${since_date:-$(date -d "$days days ago" +%F)}
-if [[ $coder == 1 ]]; then
-  elog=${XDG_STATE_HOME:-$HOME/.local/state}/melvbot/edit-route.tsv
-  [[ -f $elog ]] || { echo "no coder runs logged"; exit 0; }
-  awk -F'\t' -v since="$since" '
-    function secs(t) { return mktime(substr(t,1,4) " " substr(t,6,2) " " substr(t,9,2) " " substr(t,12,2) " " substr(t,15,2) " " substr(t,18,2)) }
-    substr($1,1,10) < since { next }
-    $2 == "coder" { n++; ts[n] = $1; desc[n] = $4; s = secs($1); fix[n] = (last && s - last <= 1800) ? "fixup" : "-"; last = s }
-    $2 == "coder-result" { for (i = n; i > 0; i--) if (desc[i] == $4 && !res[i]) { res[i] = $5; break } }
-    END {
-      printf "%-16s %-7s %-8s %s\n", "start", "fixup", "verify", "task"
-      for (i = 1; i <= n; i++) {
-        r = res[i] ? res[i] : "unknown"; tot[r]++; if (fix[i] == "fixup") ft[r]++
-        printf "%-16s %-7s %-8s %s\n", substr(ts[i],1,16), fix[i], r, desc[i]
-      }
-      printf "\nruns %d | pass %d fail %d none %d unknown %d | fixups: pass %d fail %d none %d unknown %d\n", n, tot["pass"], tot["fail"], tot["none"], tot["unknown"], ft["pass"], ft["fail"], ft["none"], ft["unknown"]
-    }' "$elog"
-  exit 0
-fi
 
 # Per day and model: day, model, input, cache write, cache read, output (deduped by message id, max per field).
 claude_usage() {

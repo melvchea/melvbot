@@ -7,7 +7,7 @@
       "Bash(docker exec melvbot *)",
       "Bash(docker compose:*)",
       "Bash(docker restart:*)",
-      "Agent(coder)",
+      "Agent(general-purpose)",
       "Bash(git pull:*)",
       "Bash(git fetch:*)"
     ],
@@ -28,7 +28,6 @@
       "WebSearch",
       "Agent(Plan)",
       "Agent(Explore)",
-      "Agent(general-purpose)",
       "Agent(claude)",
       "Agent(statusline-setup)",
       "Agent(claude-code-guide)",

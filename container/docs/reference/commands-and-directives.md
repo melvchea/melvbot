@@ -52,7 +52,8 @@ These always ask for Confirm: new, About-me or house-rules note writes, note del
 | `outlook inbox` | Mail digest |
 | `cron list\|get\|add\|update\|enable\|disable\|delete\|run-once\|prune-slots` | Scheduled jobs |
 | `memory undo` | Undo the last memory write |
-| `web search\|extract\|ask ...` | Web search and page extraction that return a short digest from Groq/MiniMax (used by the host `webx` wrapper) |
+| `turns` | Turn log with per-route counts (host `dturns`) |
+| `notify` | Send a Telegram message from the host |
 
 ## Observability
 
