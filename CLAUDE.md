@@ -15,7 +15,7 @@ Runtime rule files: `host/assistant/prompts/`; host helpers and hooks: `host/REA
 - Keep the system prompt byte-stable between turns (prompt cache); per-turn data goes in the user message.
 - API-key env vars (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`) are stripped from the agent on purpose.
 - Container is read-only except the HOME volume; the agent has no built-in tools, only `mcp__melvbot__*`.
-- Commit straight to `main` and push when asked; end commits with the Co-Authored-By line. The repo is public and `main` blocks force-pushes: subjects are 2-3 generic words ("Update scripts", "Update docs", "Fix bug"), never naming a tool, file or feature.
+- Commit straight to `main` and push when asked; end commits with the Co-Authored-By line. The repo is public and `main` blocks force-pushes: subjects are at most 4 generic words, also for squash-merged Dependabot PRs (`gh pr merge --squash --subject "Update packages"`) ("Update scripts", "Update docs", "Fix bug"), never naming a tool, file or feature.
 - Cursor was removed entirely; don't reintroduce it.
 - Code-rendered bot messages (cron reports, reminders) align with Daily Maintenance: first line `Title Ddd D Mon HH:MM` (Asia/Singapore, 24h, e.g. `Weekly Reminder Sat 10 Oct 07:00`), no `for`/dashes, then a blank line, then the body.
 - Reminders/alerts: follow "Keep every reminder aligned" in `host/assistant/prompts/reminders.md` (one home per item, Telegram only, code-rendered fixed lists, no new jobs in taken time slots).

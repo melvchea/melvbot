@@ -3,6 +3,12 @@ name: Weekly scan
 on:
   schedule:
     - cron: "17 21 * * 6"
+  push:
+    branches:
+      - "main"
+    paths:
+      - "container/ts/package*.json"
+      - "container/Dockerfile.node"
   workflow_dispatch:
 
 permissions: {}
@@ -14,6 +20,7 @@ concurrency:
 jobs:
   scorecard:
     name: scorecard
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
