@@ -2,11 +2,11 @@
 # Typecheck, test, build and deploy melvbot, then probe the doctor.
 #   ddeploy [--dry-run] [extra-service ...]
 case ${1:-} in
-  -h|--help) echo 'usage: ddeploy [--dry-run] [--no-ci] [extra-service ...]  (CI gate on HEAD, dverify --check + dverify --all only with --no-ci or a dirty container, dbuild, compose up melvbot [+services], doctor probe)'; exit 0 ;;
+  -h|--help) echo 'usage: ddeploy [--dry-run] [--no-ci] [--rebuild] [extra-service ...]  (no-op when container/ matches the running image unless --rebuild or extra services; else CI gate on HEAD, dverify --check + dverify --all only with --no-ci or a dirty container, dbuild, compose up melvbot [+services], doctor probe)'; exit 0 ;;
 esac
-dry=0 noci=0
-while [[ ${1:-} == --dry-run || ${1:-} == --no-ci ]]; do
-  [[ $1 == --dry-run ]] && dry=1 || noci=1
+dry=0 noci=0 rebuild=0
+while [[ ${1:-} == --dry-run || ${1:-} == --no-ci || ${1:-} == --rebuild ]]; do
+  case $1 in --dry-run) dry=1 ;; --no-ci) noci=1 ;; --rebuild) rebuild=1 ;; esac
   shift
 done
 services=(melvbot "$@")
@@ -30,6 +30,15 @@ rollback() { # rollback <reason>: put the previous image back, if one was saved
     echo "ddeploy: no previous image to roll back to" >&2
   fi
 }
+
+tree=$(git rev-parse HEAD:./ 2>/dev/null) # git tree of container/: same tree, same image
+if (( ! rebuild && ${#services[@]} == 1 )) && [[ -n $tree && -z $(git status --porcelain -- .) ]]; then
+  running=$(docker inspect -f '{{.Image}}' melvbot 2>/dev/null)
+  built=$(docker image inspect -f '{{.Id}}' "melvbot-ts:ctree-$tree" 2>/dev/null)
+  if [[ -n $running && $running == "$built" ]]; then
+    echo "ddeploy: container/ unchanged since the running image, nothing to deploy (--rebuild forces)"; exit 0
+  fi
+fi
 
 if (( dry )); then
   echo '[dry-run] ci-gate: refuse unless the GitHub CI run of HEAD passed (--no-ci skips)'
@@ -64,4 +73,5 @@ if (( ! ready )); then rollback "melvbot not stable after 30s"; exit 1; fi
 out=$(docker exec melvbot melvbot doctor --probe 2>&1); rc=$?
 grep -Ev '^[^:]+: (ok|skip)( |$)' <<<"$out" || echo "doctor: all checks ok"
 if (( rc != 0 )); then rollback "doctor failed (exit $rc)"; exit "$rc"; fi
+[[ -n $tree && -z $(git status --porcelain -- .) ]] && docker tag melvbot-ts:latest "melvbot-ts:ctree-$tree" # marks the image now running
 echo "ddeploy: done in $(( SECONDS - start ))s"
