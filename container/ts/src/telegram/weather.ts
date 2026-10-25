@@ -3,6 +3,12 @@ const FORECAST_24H =
 const FORECAST_2H =
   "https://api.data.gov.sg/v1/environment/2-hour-weather-forecast";
 const PM25_URL = "https://api-open.data.gov.sg/v2/real-time/api/pm25";
+const OUTLOOK_URL =
+  "https://api.open-meteo.com/v1/forecast?latitude=1.3521&longitude=103.8198" +
+  "&hourly=precipitation_probability,weather_code&forecast_hours=6&timezone=Asia%2FSingapore&timeformat=unixtime";
+const RAIN_CODE_MIN = 51;
+const THUNDER_CODE_MIN = 95;
+const RAIN_CHANCE_MIN = 50;
 const FETCH_TIMEOUT_MS = 15_000;
 const USER_AGENT = "melvbot-weather/1.0";
 const SGT = "Asia/Singapore";
@@ -265,31 +271,50 @@ function nowcastRainTowns(
   return towns;
 }
 
-// NEA has no 4-hour product: beyond the 2-hour nowcast, use the 24-hour forecast periods overlapping the window.
-function periodRainRegions(
-  forecast: Record<string, unknown>,
-  now: Date,
-  hours: number,
-): Record<string, string> | null {
-  const windowEnd = new Date(now.getTime() + hours * 3_600_000);
-  const rainy: Record<string, string> = {};
-  const periods =
-    (forecast.periods as
-      | { time?: { start?: string; end?: string }; regions?: Record<string, string> }[]
-      | undefined) ?? [];
-  for (const period of periods) {
-    const start = parseSgt(period.time?.start);
-    const end = parseSgt(period.time?.end);
-    if (!start || !end || end <= now || start >= windowEnd) {
-      continue;
-    }
-    for (const [region, text] of Object.entries(period.regions ?? {})) {
-      if (isRain(String(text)) && !(region in rainy)) {
-        rainy[region] = String(text);
-      }
-    }
+export type HourlyOutlook = {
+  time: number[];
+  precipitation_probability: (number | null)[];
+  weather_code: (number | null)[];
+};
+
+// NEA has no 4-hour product: hours 2-4 come from Open-Meteo's hourly model forecast.
+export async function fetchHourlyOutlook(): Promise<HourlyOutlook | null> {
+  const response = await fetch(OUTLOOK_URL, {
+    headers: { "user-agent": USER_AGENT },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    throw new Error(`Open-Meteo fetch failed: ${OUTLOOK_URL}`);
   }
-  return Object.keys(rainy).length ? rainy : null;
+  const payload = (await response.json()) as { hourly?: HourlyOutlook };
+  return payload.hourly ?? null;
+}
+
+function outlookRain(
+  outlook: HourlyOutlook | null | undefined,
+  now: Date,
+): { conditions: string; chance: number } | null {
+  if (!outlook) {
+    return null;
+  }
+  const from = now.getTime() + NOWCAST_HOURS * 3_600_000;
+  const to = now.getTime() + ROUTINE_HOURS * 3_600_000;
+  let chance = 0;
+  let code = 0;
+  outlook.time.forEach((seconds, i) => {
+    const start = seconds * 1000;
+    const slotCode = outlook.weather_code[i] ?? 0;
+    const slotChance = outlook.precipitation_probability[i] ?? 0;
+    if (start + 3_600_000 <= from || start >= to || slotCode < RAIN_CODE_MIN || slotChance < RAIN_CHANCE_MIN) {
+      return;
+    }
+    chance = Math.max(chance, slotChance);
+    code = Math.max(code, slotCode);
+  });
+  if (!chance) {
+    return null;
+  }
+  return { conditions: code >= THUNDER_CODE_MIN ? "Thundery Showers" : "Showers", chance };
 }
 
 function joinNames(names: string[]): string {
@@ -471,6 +496,7 @@ export function renderWeatherBullet(
   nowcast: Record<string, unknown> | null | undefined,
   now: Date,
   aheadHours = NOWCAST_HOURS,
+  outlook?: HourlyOutlook | null,
 ): string {
   const general = (forecast.general as {
     temperature?: { high?: number; low?: number };
@@ -485,11 +511,9 @@ export function renderWeatherBullet(
     const chance = rainChance(conditions, {}, towns);
     return `${conditions} in ${window} (${chance}% chance)${areas}, ${low}°C-${high}°C`;
   }
-  const periodRain = aheadHours > NOWCAST_HOURS ? periodRainRegions(forecast, now, aheadHours) : null;
-  if (periodRain) {
-    const conditions = pickConditions(Object.values(periodRain));
-    const chance = rainChance(conditions, periodRain, []);
-    return `${conditions} in ${window} (${chance}% chance)${areaClause(Object.keys(periodRain), [])}, ${low}°C-${high}°C`;
+  const later = aheadHours > NOWCAST_HOURS ? outlookRain(outlook, now) : null;
+  if (later) {
+    return `${later.conditions} in ${window} (${later.chance}% chance), ${low}°C-${high}°C`;
   }
   const conditions = dryConditions(forecast, nowcastCoversNow(nowcast, now) ? nowcast : null);
   return `${conditions} in ${window} (no rain), ${low}°C-${high}°C`;
@@ -520,6 +544,7 @@ export async function formatWeatherMessage(
     forecast?: Record<string, unknown>;
     nowcast?: Record<string, unknown> | null;
     pm25?: Record<string, unknown> | null;
+    outlook?: HourlyOutlook | null;
     cronLayout?: boolean;
   } = {},
 ): Promise<string> {
@@ -538,8 +563,19 @@ export async function formatWeatherMessage(
   }
   const raining = nowcastHasRain(nowcast, now);
   const band = pm25BandFromItem(pm25);
-  const aheadHours = windowHours(raining, band);
-  const bullet = renderWeatherBullet(forecast, nowcast, now, aheadHours);
+  let aheadHours = windowHours(raining, band);
+  let outlook = options.outlook;
+  if (aheadHours > NOWCAST_HOURS && outlook === undefined && live) {
+    try {
+      outlook = await fetchHourlyOutlook();
+    } catch {
+      outlook = null;
+    }
+  }
+  if (!outlook) {
+    aheadHours = NOWCAST_HOURS;
+  }
+  const bullet = renderWeatherBullet(forecast, nowcast, now, aheadHours, outlook);
   const clause = renderPm25Clause(pm25);
 
   const parts = sgtParts(now);
