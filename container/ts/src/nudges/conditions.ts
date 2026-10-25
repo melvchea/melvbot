@@ -106,3 +106,56 @@ export function isNoteStale(input: NoteStaleInput): boolean {
   }
   return (input.now.getTime() - updatedMs) / MS_PER_DAY > NOTE_STALE_DAYS;
 }
+
+export const NAGOYA_MILESTONES = [30, 14, 7, 3, 1];
+export const TASK_DEADLINE_DAYS = 7;
+export const MATCH_DAY_LEAD_DAYS = 1;
+
+/** Whole days from `today` to `target`, both SGT YYYY-MM-DD strings. */
+export function daysUntil(target: string, today: string): number {
+  return Math.round((Date.parse(`${target}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / MS_PER_DAY);
+}
+
+/** The earliest YYYY-MM-DD on or after `today` in a Note body: the first booked date of the trip. */
+export function firstUpcomingDate(body: string, today: string): string | null {
+  const dates = (body.match(/\b\d{4}-\d{2}-\d{2}\b/g) ?? []).filter((date) => date >= today);
+  return dates.sort()[0] ?? null;
+}
+
+/** Countdown line plus the milestone bracket (30/14/7/3/1) it belongs to, so a missed day still fires once. */
+export function nagoyaCountdownCondition(input: { start: string; today: string }): { line: string; milestone: number } | null {
+  const days = daysUntil(input.start, input.today);
+  const milestone = NAGOYA_MILESTONES.filter((value) => value >= days).at(-1);
+  if (days < 0 || milestone === undefined) {
+    return null;
+  }
+  const when = days === 0 ? "starts today" : `in ${days} ${days === 1 ? "day" : "days"}`;
+  return { line: `Nagoya trip ${when} (${input.start})`, milestone };
+}
+
+/** Fires for an open task due in 1..TASK_DEADLINE_DAYS days; today's are the 19:15 sweep's. */
+export function taskDeadlineCondition(input: { title: string; dueDay: string; today: string }): string | null {
+  const days = daysUntil(input.dueDay, input.today);
+  if (days < 1 || days > TASK_DEADLINE_DAYS) {
+    return null;
+  }
+  return `${input.title} is due in ${days} ${days === 1 ? "day" : "days"} (${input.dueDay})`;
+}
+
+/** Watch-list lines are `YYYY-MM-DD text`; one line per date, same-day entries joined. */
+export function parseWatchList(body: string): { date: string; text: string }[] {
+  const byDate = new Map<string, string[]>();
+  for (const match of body.matchAll(/^[-*\s]*(\d{4}-\d{2}-\d{2})[\s:]+(.+)$/gm)) {
+    byDate.set(match[1], [...(byDate.get(match[1]) ?? []), match[2].trim()]);
+  }
+  return [...byDate].map(([date, texts]) => ({ date, text: texts.join(" / ") }));
+}
+
+/** Fires on the match day and MATCH_DAY_LEAD_DAYS before it. */
+export function matchDayCondition(input: { date: string; text: string; today: string }): { line: string; days: number } | null {
+  const days = daysUntil(input.date, input.today);
+  if (days < 0 || days > MATCH_DAY_LEAD_DAYS) {
+    return null;
+  }
+  return { line: `${days === 0 ? "Today" : "Tomorrow"}: ${input.text}`, days };
+}

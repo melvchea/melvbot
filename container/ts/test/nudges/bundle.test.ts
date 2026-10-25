@@ -73,3 +73,26 @@ test("the monthly review lists each card's last-cycle total against its Target",
   assert.match(block.text, /\$700 of \$625 Target, met \(cycle to 2026-09-30\)/);
   assert.match(block.text, /\$500 of \$800 Target, short/);
 });
+
+test("Nagoya, task-deadline and match-day lines fire once each and not again", () => {
+  const dbPath = tempDbPath();
+  const input = {
+    cards: [],
+    ev: null,
+    nagoyaStart: "2026-09-22",
+    tasks: [
+      { id: "abcdefghijklmnop", title: "Book museum", dueDay: "2026-09-20" },
+      { id: "farfarfarfarfar", title: "Far task", dueDay: "2026-12-01" },
+    ],
+    matches: [{ date: "2026-09-16", text: "Worlds: T1 vs BLG" }],
+    toml,
+    dbPath,
+  };
+  const first = buildHeadsUpBlock({ ...input, now: daytimeNow });
+  assert.ok(first);
+  assert.match(first.text, /Nagoya trip in 7 days \(2026-09-22\)/);
+  assert.match(first.text, /Book museum is due in 5 days/);
+  assert.doesNotMatch(first.text, /Far task/);
+  assert.match(first.text, /Tomorrow: Worlds: T1 vs BLG/);
+  assert.equal(buildHeadsUpBlock({ ...input, now: new Date(daytimeNow.getTime() + 3_600_000) }), null);
+});

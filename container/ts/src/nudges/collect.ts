@@ -4,11 +4,13 @@
  * and hand the result to `buildHeadsUpBlock`/`buildMonthlyReviewBlock`.
  */
 import { countEpisodes } from "../assistant/conversation_store.js";
+import { tasksList } from "../google/http.js";
 import { getNote, listNotes } from "../note/notes.js";
 import { listEv } from "../sheet/ev_list.js";
 import { parseMoney } from "../sheet/spend_cycle.js";
 import { listSpend } from "../sheet/spend_list.js";
 import type { AutoHistoryCount, CycleSpendTotal, HeadsUpCardInput, HeadsUpInput, MonthlyReviewInput, StaleNoteInput } from "./bundle.js";
+import { firstUpcomingDate, parseWatchList, TASK_DEADLINE_DAYS, daysUntil } from "./conditions.js";
 import { lastReviewedAt } from "./store.js";
 import type { NudgesToml } from "./toml.js";
 
@@ -61,7 +63,40 @@ export async function collectHeadsUpInput(toml: NudgesToml, now: Date, dbPath?: 
   } catch {
     ev = null;
   }
-  return { cards, ev, toml, now, dbPath };
+  const today = ymd(now);
+  const [nagoyaStart, tasks, matches] = await Promise.all([
+    toml.nagoyaCountdown ? nagoyaStartDate(today) : null,
+    toml.taskDeadline ? upcomingTasks(today) : [],
+    toml.matchDay ? watchList() : [],
+  ]);
+  return { cards, ev, nagoyaStart, tasks, matches, toml, now, dbPath };
+}
+
+// Each extra source fails open: a missing Note or Google error drops only its own nudge.
+async function nagoyaStartDate(today: string): Promise<string | null> {
+  try {
+    return firstUpcomingDate((await getNote("nagoya-dec-2026")).body, today);
+  } catch {
+    return null;
+  }
+}
+
+async function upcomingTasks(today: string): Promise<NonNullable<HeadsUpInput["tasks"]>> {
+  try {
+    return (await tasksList(100))
+      .map((task) => ({ id: task.id, title: task.title, dueDay: task.due.slice(0, 10) }))
+      .filter((task) => task.id && task.dueDay && daysUntil(task.dueDay, today) >= 1 && daysUntil(task.dueDay, today) <= TASK_DEADLINE_DAYS);
+  } catch {
+    return [];
+  }
+}
+
+async function watchList(): Promise<NonNullable<HeadsUpInput["matches"]>> {
+  try {
+    return parseWatchList((await getNote("watch-list")).body);
+  } catch {
+    return [];
+  }
 }
 
 async function lastCycleSpend(owner: "owner1" | "owner2", card: "card1" | "card2", now: Date): Promise<CycleSpendTotal> {

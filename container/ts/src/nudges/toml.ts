@@ -13,6 +13,9 @@ export type NudgesToml = {
   saveOffer: boolean;
   monthlyReview: boolean;
   taskEvening: boolean;
+  nagoyaCountdown: boolean;
+  taskDeadline: boolean;
+  matchDay: boolean;
   monthlyReviewJobId: string;
 };
 
@@ -41,6 +44,9 @@ export function parseNudgesSection(text: string): NudgesToml {
     saveOffer: parseBoolDefaultTrue(table.save_offer),
     monthlyReview: parseBoolDefaultTrue(table.monthly_review),
     taskEvening: parseBoolDefaultTrue(table.task_evening),
+    nagoyaCountdown: parseBoolDefaultTrue(table.nagoya_countdown),
+    taskDeadline: parseBoolDefaultTrue(table.task_deadline),
+    matchDay: parseBoolDefaultTrue(table.match_day),
     monthlyReviewJobId: table.monthly_review_job_id?.trim() || DEFAULT_MONTHLY_REVIEW_JOB_ID,
   };
 }

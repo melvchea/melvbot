@@ -31,6 +31,9 @@ digest_log = true
 save_offer = true
 monthly_review = true
 task_evening = true           # 19:15 SGT task list
+nagoya_countdown = true       # Heads up: 30/14/7/3/1 days to the first upcoming date in Note nagoya-dec-2026
+task_deadline = true          # Heads up: open Tasks due in 1-7 days
+match_day = true              # Heads up: day-of and day-before lines from Note watch-list
 monthly_review_job_id = "..."
 ```
 
@@ -48,4 +51,4 @@ Maps a note slug to its Google Doc id. `about-me` and `house-rules` are loaded i
 
 ## `[nudges]`
 
-Boolean switches for proactive messages: `headroom`, `ev_interval`, `spend_gap`, `digest_log`, `save_offer`, `monthly_review` (job id in `monthly_review_job_id`) and `task_evening` (19:15 SGT list of tasks due or overdue; see [Architecture](../explanation/architecture.md#reminders)). `task_evening` defaults to on.
+Boolean switches for proactive messages: `headroom`, `ev_interval`, `spend_gap`, `digest_log`, `save_offer`, `monthly_review` (job id in `monthly_review_job_id`) and `task_evening` (19:15 SGT list of tasks due or overdue; see [Architecture](../explanation/architecture.md#reminders)). `task_evening` defaults to on. `nagoya_countdown`, `task_deadline` and `match_day` add lines to the Morning Update Heads up block; `match_day` reads one `YYYY-MM-DD text` line per match from the Note `watch-list`, which you create.

@@ -1,5 +1,13 @@
 import { cardLabel } from "../profile.js";
-import { evIntervalCondition, headroomCondition, isNoteStale, spendGapCondition } from "./conditions.js";
+import {
+  evIntervalCondition,
+  headroomCondition,
+  isNoteStale,
+  matchDayCondition,
+  nagoyaCountdownCondition,
+  spendGapCondition,
+  taskDeadlineCondition,
+} from "./conditions.js";
 import { isQuietHour, markNudgeFired, shouldShowNudge } from "./store.js";
 import type { NudgesToml } from "./toml.js";
 
@@ -20,6 +28,12 @@ export type HeadsUpCardInput = {
 export type HeadsUpInput = {
   cards: HeadsUpCardInput[];
   ev: { recentDayGaps: number[]; lastChargedOn: string } | null;
+  /** Earliest upcoming booked date in the `nagoya-dec-2026` Note. */
+  nagoyaStart?: string | null;
+  /** Open tasks with a due date (YYYY-MM-DD). */
+  tasks?: { id: string; title: string; dueDay: string }[];
+  /** Watch-list entries, one per date. */
+  matches?: { date: string; text: string }[];
   toml: NudgesToml;
   now: Date;
   dbPath?: string;
@@ -40,6 +54,13 @@ function sgtDateParts(now: Date): { year: number; month: number; day: number } {
     day: Number(parts.find((part) => part.type === "day")?.value),
   };
 }
+
+function sgtYmd(now: Date): string {
+  const { year, month, day } = sgtDateParts(now);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+const MAX_TASK_NUDGES = 5;
 
 function isoWeek(now: Date): string {
   const { year, month, day } = sgtDateParts(now);
@@ -103,6 +124,43 @@ export function buildHeadsUpBlock(input: HeadsUpInput): BundleBlock | null {
       const line = spendGapCondition({ ...card, now: input.now });
       if (line) {
         lines.push(line);
+        buttons.push({ key, period, label: "Done" }, { key, period, label: "Snooze" });
+        markNudgeFired(key, period, input.now, input.dbPath);
+      }
+    }
+  }
+
+  const today = sgtYmd(input.now);
+
+  if (input.toml.nagoyaCountdown && input.nagoyaStart) {
+    const countdown = nagoyaCountdownCondition({ start: input.nagoyaStart, today });
+    const period = countdown ? `${input.nagoyaStart}:${countdown.milestone}` : "";
+    if (countdown && shouldShowNudge("nagoya", period, input.now, input.dbPath)) {
+      lines.push(countdown.line);
+      buttons.push({ key: "nagoya", period, label: "Done" }, { key: "nagoya", period, label: "Snooze" });
+      markNudgeFired("nagoya", period, input.now, input.dbPath);
+    }
+  }
+
+  if (input.toml.taskDeadline) {
+    for (const task of (input.tasks ?? []).slice(0, MAX_TASK_NUDGES)) {
+      const key = `task_deadline:${task.id.slice(0, 12)}`;
+      const line = taskDeadlineCondition({ title: task.title, dueDay: task.dueDay, today });
+      if (line && shouldShowNudge(key, task.dueDay, input.now, input.dbPath)) {
+        lines.push(line);
+        buttons.push({ key, period: task.dueDay, label: "Done" }, { key, period: task.dueDay, label: "Snooze" });
+        markNudgeFired(key, task.dueDay, input.now, input.dbPath);
+      }
+    }
+  }
+
+  if (input.toml.matchDay) {
+    for (const match of input.matches ?? []) {
+      const alert = matchDayCondition({ ...match, today });
+      const key = `match_day:${match.date}`;
+      const period = alert ? `d${alert.days}` : "";
+      if (alert && shouldShowNudge(key, period, input.now, input.dbPath)) {
+        lines.push(alert.line);
         buttons.push({ key, period, label: "Done" }, { key, period, label: "Snooze" });
         markNudgeFired(key, period, input.now, input.dbPath);
       }
