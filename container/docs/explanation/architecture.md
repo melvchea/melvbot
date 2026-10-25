@@ -53,7 +53,7 @@ Google stores, Telegram alerts. Calendar and Tasks hold the data; melvbot-create
 
 ## Module map
 
-Live TypeScript tree under `ts/src`. `index.ts` dispatches the CLI (`doctor`, `sheet`, `note`, `google`, `outlook`, `cron`, `memory`, `web`) or starts the poller.
+Live TypeScript tree under `ts/src`. `index.ts` dispatches the CLI (`doctor`, `sheet`, `note`, `google`, `outlook`, `cron`, `memory`, `turns`, `notify`) or starts the poller.
 
 | Area | Modules | Responsibility |
 |------|---------|----------------|

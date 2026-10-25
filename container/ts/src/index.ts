@@ -1,7 +1,4 @@
-import { runWebCli } from "./web/cli.js";
-import { runAskCli, runDigestCli } from "./web/digest.js";
 import { runTurnsCli } from "./assistant/turns_cli.js";
-import { helperUsage } from "./assistant/fallback.js";
 import { startSessionIdleSweep, stopSessionIdleSweep } from "./assistant/claude_session.js";
 import { stopReminderTicker } from "./reminders/ticker.js";
 import { startPromptCacheRefresh, stopPromptCacheRefresh } from "./assistant/system_prompt.js";
@@ -16,16 +13,10 @@ import { runNoteCli } from "./note/cli.js";
 import { runOutlookCli } from "./outlook/cli.js";
 import { runNotifyCli } from "./telegram/notify_cli.js";
 
-const CLI_USAGE = "usage: melvbot doctor | sheet | note | memory | google | outlook | cron | web | digest | ask | turns | notify";
+const CLI_USAGE = "usage: melvbot doctor | sheet | note | memory | google | outlook | cron | turns | notify";
 
 export function isTelegramPollArgv(args: readonly string[]): boolean {
   return args.length === 0;
-}
-
-/** Prints the helper CLIs' MiniMax/Groq token use on stderr (the host wrappers that logged it were removed). */
-function exitWithHelperUsage(code: number): never {
-  process.stderr.write(`helper-tokens: ${helperUsage.input} ${helperUsage.output}\n`);
-  process.exit(code);
 }
 
 async function main(): Promise<void> {
@@ -54,17 +45,8 @@ async function main(): Promise<void> {
   if (args[0] === "outlook") {
     process.exit(await runOutlookCli(args.slice(1)));
   }
-  if (args[0] === "digest") {
-    exitWithHelperUsage(await runDigestCli(args.slice(1)));
-  }
-  if (args[0] === "ask") {
-    exitWithHelperUsage(await runAskCli(args.slice(1)));
-  }
   if (args[0] === "turns") {
     process.exit(runTurnsCli(args.slice(1)));
-  }
-  if (args[0] === "web") {
-    exitWithHelperUsage(await runWebCli(args.slice(1)));
   }
   if (args[0] === "notify") {
     process.exit(await runNotifyCli(args.slice(1)));

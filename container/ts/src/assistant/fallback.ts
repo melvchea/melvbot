@@ -45,8 +45,6 @@ const MINIMAX_PROVIDER: Provider = {
 
 export const FALLBACK_PROVIDERS: Provider[] = [GROQ_PROVIDER, MINIMAX_PROVIDER];
 
-export const HELPER_PROVIDERS: Provider[] = [MINIMAX_PROVIDER, GROQ_PROVIDER];
-
 export type FallbackResult = { text: string; provider: string };
 
 function storedText(message: StoredMessage): string {
@@ -79,10 +77,7 @@ function clean(raw: string): string {
   return raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
-/** MiniMax/Groq tokens used by this process; the helper CLIs print it for helper-usage.tsv. */
-export const helperUsage = { input: 0, output: 0 };
-
-async function askProvider(provider: Provider, messages: ChatMessage[], signal: AbortSignal, maxTokens: number): Promise<string> {
+async function askProvider(provider: Provider, messages: ChatMessage[], signal: AbortSignal): Promise<string> {
   const key = provider.key();
   if (!key) {
     throw new Error(`${provider.name} key missing`);
@@ -90,15 +85,13 @@ async function askProvider(provider: Provider, messages: ChatMessage[], signal: 
   const response = await fetch(provider.url, {
     method: "POST",
     headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-    body: JSON.stringify({ model: provider.model, messages, max_tokens: maxTokens, ...provider.extra }),
+    body: JSON.stringify({ model: provider.model, messages, max_tokens: MAX_TOKENS, ...provider.extra }),
     signal: AbortSignal.any([signal, AbortSignal.timeout(provider.timeoutMs ?? REQUEST_TIMEOUT_MS)]),
   });
   if (!response.ok) {
     throw new Error(`${provider.name} HTTP ${response.status}`);
   }
-  const payload = (await response.json()) as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
-  helperUsage.input += payload.usage?.prompt_tokens ?? 0;
-  helperUsage.output += payload.usage?.completion_tokens ?? 0;
+  const payload = (await response.json()) as { choices?: { message?: { content?: string } }[] };
   const text = clean(payload.choices?.[0]?.message?.content ?? "");
   if (!text) {
     throw new Error(`${provider.name} returned no text`);
@@ -110,12 +103,12 @@ async function askProvider(provider: Provider, messages: ChatMessage[], signal: 
 export async function completeWithProviders(
   messages: ChatMessage[],
   signal: AbortSignal,
-  options: { providers?: Provider[]; maxTokens?: number } = {},
+  options: { providers?: Provider[] } = {},
 ): Promise<FallbackResult> {
   const failures: string[] = [];
   for (const provider of options.providers ?? FALLBACK_PROVIDERS) {
     try {
-      return { text: await askProvider(provider, messages, signal, options.maxTokens ?? MAX_TOKENS), provider: provider.name };
+      return { text: await askProvider(provider, messages, signal), provider: provider.name };
     } catch (error) {
       if (signal.aborted) {
         throw error;

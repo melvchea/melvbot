@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Estimated tokens saved by the LLM helpers (digest, webx; removed 2026-10-25, history only), from ~/.local/state/melvbot/helper-usage.tsv.
-#   dsaved [days]            Claude Code token usage per day and model (transcripts), helper report (default 7 days) with per-day saved %, then Telegram SDK turns (turn_log); no LLM
+#   dsaved [days]            Claude Code token usage per day and model (transcripts), then Telegram SDK turns (turn_log); no LLM
 #   dsaved --outcome [days]  Claude Code $ per day (list prices, cache writes at 5m rate) and git commits that day = $ per completed outcome; redos = fix/revert-subject commits re-touching a file changed <24h earlier
 #   dsaved --sessions [days] Claude Code per session (incl. subagents): start, msgs, input / cache write / cache read / output, est $ at list prices, commits during the session (UTC start..last msg), $/commit; top 20 by $
 #   dsaved --coder [days]    coder subagent runs: start, fixup (launched within 30 min of the previous coder), VERIFY result (pass|fail|none|unknown), task, with totals
-case ${1:-} in -h|--help) echo 'usage: dsaved [--outcome|--sessions] [days]  (--sessions: Claude Code per session start, msgs, tokens, est $, top 20 by $;--outcome: Claude Code $ per day at list prices / git commits that day = $ per commit;default: Claude Code CLI per day and model input / cache write / cache read / output tokens from transcripts, then helper report per day and caller: calls, raw KB, out KB, est tokens saved = (raw-out)/4, webx a fixed per-call credit (search 12800, extract 28000, ask 40800), then saved % of that day'"'"'s Claude tokens, then Telegram SDK Claude turns, input / output tokens and no-LLM intercepts per day from turn_log)'; exit 0 ;; esac
+case ${1:-} in -h|--help) echo 'usage: dsaved [--outcome|--sessions|--review|--coder] [days]  (--sessions: Claude Code per session start, msgs, tokens, est $, top 20 by $;--outcome: Claude Code $ per day at list prices / git commits that day = $ per commit;default: Claude Code CLI per day and model input / cache write / cache read / output tokens from transcripts, then Telegram SDK Claude turns, input / output tokens and no-LLM intercepts per day from turn_log)'; exit 0 ;; esac
 outcome=0 sessions=0 review=0 coder=0
 if [[ ${1:-} == --coder ]]; then coder=1; shift; fi
 if [[ ${1:-} == --review ]]; then review=1; shift; fi
@@ -21,11 +20,8 @@ fi
 if [[ $review == 1 ]]; then
   echo "== \$ per commit =="; "$0" --outcome "$days"
   echo; echo "== top 5 sessions (! = review) =="; "$0" --sessions "$days" | sed -n '1,7p'
-  echo; echo "== helper savings (est tokens, top callers) =="
-  "$0" "$days" | awk '$2 ~ /^(d|t|webx|digest|direct)/ && $3 ~ /^[0-9]+$/ {s[$2]+=$6; n[$2]+=$3} END {for (k in s) printf "%-14s %5d calls %8d saved\n", k, n[k], s[k]}' | sort -k4 -nr | head -8
   exit 0
 fi
-log=~/.local/state/melvbot/helper-usage.tsv
 since=${since_date:-$(date -d "$days days ago" +%F)}
 if [[ $coder == 1 ]]; then
   elog=${XDG_STATE_HOME:-$HOME/.local/state}/melvbot/edit-route.tsv
@@ -45,25 +41,6 @@ if [[ $coder == 1 ]]; then
     }' "$elog"
   exit 0
 fi
-
-# Claude tokens spent calling each helper (transcripts): Bash command text Claude wrote + tool result it read, bytes/4, per day.
-helper_call_usage() {
-  local dir=~/.claude/projects/-home-melvbot-melvbot-storage
-  [[ -d $dir ]] || return 0
-  echo; echo "Claude tokens calling helpers (transcripts, bytes/4)"
-  find "$dir" -name '*.jsonl' -print0 2>/dev/null | xargs -0 -r jq -r --arg since "$since" '
-    select((.timestamp // "") >= $since and (.message.content | type) == "array") | .timestamp[0:10] as $d | .message.content[] |
-    if .type == "tool_use" and .name == "Bash" then ["U", .id, $d, (.input.command // "")] | @tsv
-    elif .type == "tool_result" then ["R", .tool_use_id, (.content | tostring | length)] | @tsv
-    else empty end' 2>/dev/null |
-  awk -F'\t' '
-    $1 == "U" { if (match($4, /(^|[|;&( ])(dverify|dbuild|dturns|ddeploy|webx|digest)( |$)/)) {
-        h = substr($4, RSTART, RLENGTH); gsub(/[|;&( ]/, "", h); k = $3 "\t" h; who[$2] = k; n[k]++; cin[k] += length($4) } }
-    $1 == "R" && ($2 in who) { cout[who[$2]] += $3 }
-    END { for (k in n) printf "%s\t%d\t%d\t%d\n", k, n[k], cin[k]/4, cout[k]/4 }' | sort |
-  awk -F'\t' 'BEGIN { printf "%-11s %-14s %6s %9s %10s %9s\n", "day", "helper", "calls", "call tok", "result tok", "total" }
-    { printf "%-11s %-14s %6d %9d %10d %9d\n", $1, $2, $3, $4, $5, $4 + $5 }'
-}
 
 # Per day and model: day, model, input, cache write, cache read, output (deduped by message id, max per field).
 claude_usage() {
@@ -186,30 +163,5 @@ if (( outcome )); then
 fi
 
 cli_usage
-[[ -f $log ]] || { echo "no data yet ($log)"; sdk_usage; exit 0; }
-awk -F'\t' -v since="$since" '
-  function cred(c, r, o) { if (c ~ /^webx:/ && (r == "-" || r + 0 <= o + 0)) return 0; if (c == "webx:search") return 12800; if (c == "webx:extract") return 28000; if (c == "webx:ask") return 40800; return (r == "-") ? 0 : (r - o) / 4 }
-  substr($1,1,10) >= since {
-    k = substr($1,1,10) "\t" $2
-    calls[k]++
-    if ($3 != "-") { raw[k] += $3; out[k] += $4 }
-    saved[k] += cred($2, $3, $4)
-    mmi[k] += $8; mmo[k] += $9
-  }
-  END {
-    for (k in calls) printf "%s\t%d\t%.1f\t%.1f\t%d\t%d\t%d\t%d\n", k, calls[k], raw[k]/1024, out[k]/1024, saved[k], mmi[k], mmo[k], out[k]/4
-  }' "$log" | sort | awk -F'\t' 'BEGIN { printf "%-11s %-14s %6s %8s %7s %12s %9s %8s %10s\n", "day", "caller", "calls", "raw KB", "out KB", "tokens saved", "MM in", "MM out", "Claude tok" } { printf "%-11s %-14s %6d %8s %7s %12d %9d %8d %10d\n", $1, $2, $3, $4, $5, $6, $7, $8, $9 }'
 
-# Saved tokens as % of each day's total Claude tokens.
-totals=$(claude_usage | awk -F'\t' '{ t[$1] += $3 + $4 + $5 + $6 } END { for (d in t) printf "%s\t%d\n", d, t[d] }')
-if [[ -n $totals ]]; then
-  awk -F'\t' -v since="$since" '
-    function cred(c, r, o) { if (c ~ /^webx:/ && (r == "-" || r + 0 <= o + 0)) return 0; if (c == "webx:search") return 12800; if (c == "webx:extract") return 28000; if (c == "webx:ask") return 40800; return (r == "-") ? 0 : (r - o) / 4 }
-    FILENAME == ARGV[1] { tot[$1] = $2; next }
-    substr($1,1,10) >= since { s[substr($1,1,10)] += cred($2, $3, $4) }
-    END { for (d in s) if (d in tot && tot[d] > 0) printf "%s\t%.1f\t%d\t%d\n", d, 100 * s[d] / tot[d], s[d], tot[d] }' \
-    <(printf '%s\n' "$totals") "$log" | sort |
-    awk -F'\t' 'BEGIN { print "" } { printf "%s  helper tokens saved = %s%% of %d Claude tokens (%d saved)\n", $1, $2, $4, $3 }'
-fi
-helper_call_usage
 sdk_usage
