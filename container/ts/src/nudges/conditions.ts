@@ -144,11 +144,11 @@ export function taskDeadlineCondition(input: { title: string; dueDay: string; to
 
 /** Watch-list lines are `YYYY-MM-DD text`; one line per date, same-day entries joined. */
 export function parseWatchList(body: string): { date: string; text: string }[] {
-  const byDate = new Map<string, string[]>();
+  const grouped = new Map<string, string[]>();
   for (const match of body.matchAll(/^[-*\s]*(\d{4}-\d{2}-\d{2})[\s:]+(.+)$/gm)) {
-    byDate.set(match[1], [...(byDate.get(match[1]) ?? []), match[2].trim()]);
+    grouped.set(match[1], [...(grouped.get(match[1]) ?? []), match[2].trim()]);
   }
-  return [...byDate].map(([date, texts]) => ({ date, text: texts.join(" / ") }));
+  return [...grouped].map(([date, texts]) => ({ date, text: texts.join(" / ") }));
 }
 
 /** Fires on the match day and MATCH_DAY_LEAD_DAYS before it. */
