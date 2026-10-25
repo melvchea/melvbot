@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Estimated tokens saved by the LLM helpers (digest wrappers, webx), from ~/.local/state/melvbot/helper-usage.tsv.
+# Estimated tokens saved by the LLM helpers (digest, webx; removed 2026-10-25, history only), from ~/.local/state/melvbot/helper-usage.tsv.
 #   dsaved [days]            Claude Code token usage per day and model (transcripts), helper report (default 7 days) with per-day saved %, then Telegram SDK turns (turn_log); no LLM
 #   dsaved --outcome [days]  Claude Code $ per day (list prices, cache writes at 5m rate) and git commits that day = $ per completed outcome; redos = fix/revert-subject commits re-touching a file changed <24h earlier
 #   dsaved --sessions [days] Claude Code per session (incl. subagents): start, msgs, input / cache write / cache read / output, est $ at list prices, commits during the session (UTC start..last msg), $/commit; top 20 by $

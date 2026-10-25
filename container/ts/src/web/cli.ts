@@ -103,7 +103,7 @@ function distinctByHost<T extends { url: string }>(hits: readonly T[], limit: nu
   return picked;
 }
 
-/** Lets the host `webx` wrapper log raw vs output size; it strips this line from stderr. */
+/** Prints the raw size on stderr (the host `webx` wrapper that logged it was removed). */
 function logRawBytes(text: string): void {
   process.stderr.write(`webx-raw-bytes: ${Buffer.byteLength(text)}\n`);
 }

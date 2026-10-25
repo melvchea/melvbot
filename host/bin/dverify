@@ -1,34 +1,38 @@
 #!/usr/bin/env bash
 # Verify the current change in one call: typecheck, then only the tests touched by the git diff (incl. untracked files).
-#   dverify           one line on pass; first failure digest on fail
-#   dverify --check   typecheck only (tsc --noEmit): "tsc: clean" or a digest of errors
-#   dverify --all     typecheck, then the full test suite; digest of failures only
+#   dverify           one line on pass; first failure output on fail
+#   dverify --check   typecheck only (tsc --noEmit): "tsc: clean" or the first 40 error lines
+#   dverify --all     typecheck, then the full test suite; counts on pass, last 60 lines on fail
 case ${1:-} in
   -h|--help) echo 'usage: dverify [--check|--all]  (default: typecheck, then tests touched by the git diff; "dverify: ok" on pass; --check: typecheck only; --all: full suite; exit status of the failing step)'; exit 0 ;;
   ""|--check|--all) ;;
   *) echo 'usage: dverify [--check|--all]' >&2; exit 2 ;;
 esac
-export DIGEST_CALLER=${DIGEST_CALLER:-dverify}
 ts=$HOME/melvbot-storage/container/ts
 cd "$ts" || exit 1
 
-typecheck() { # plain tsc, no model call; failures are digested
+typecheck() { # plain tsc; on failure the first 40 lines of errors
   local tsc_out rc
   tsc_out=$(npx tsc -p tsconfig.json --noEmit 2>&1); rc=$?
   if (( rc == 0 )); then
     [[ -n $tsc_out ]] && echo "$tsc_out"
     echo "tsc: clean"
   else
-    printf '%s\n' "$tsc_out" | digest "TypeScript errors: file:line and message, or say clean"
+    printf '%s\n' "$tsc_out" | head -n 40
   fi
   return $rc
 }
 
-run_tests() { # run_tests [test files...]: digest of failures only (default: every test)
-  local files
+run_tests() { # run_tests [test files...]: pass/fail counts, or the last 60 lines on failure (default: every test)
+  local files out rc
   if (( $# )); then files=("$@"); else files=(test/*.test.ts test/*/*.test.ts); fi
-  digest --run "$(printf '%q ' node --import tsx --test "${files[@]}")" \
-    "pass/fail counts; for each failing test: name, file:line, assertion message"
+  out=$(node --import tsx --test "${files[@]}" 2>&1); rc=$?
+  if (( rc == 0 )); then
+    printf '%s\n' "$out" | rg '^ℹ (tests|pass|fail) '
+  else
+    printf '%s\n' "$out" | tail -n 60
+  fi
+  return $rc
 }
 
 case ${1:-} in

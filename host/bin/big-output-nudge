@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-# PostToolUse hook for Bash: when a command returned a large raw dump, remind Claude to use digest next time.
-# Fails open: any error here must not block the tool.
-size=$(jq -r '[.tool_response | (.stdout? // .output? // tostring), (.stderr? // "")] | join("")' 2>/dev/null | wc -c) || size=0
-if (( ${size:-0} > 4000 )); then
-  # shellcheck disable=SC2016
-  printf '%s' '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"Large output: use digest --run \"<cmd>\" \"<question>\" next time."}}'
-fi
-exit 0

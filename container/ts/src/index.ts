@@ -22,7 +22,7 @@ export function isTelegramPollArgv(args: readonly string[]): boolean {
   return args.length === 0;
 }
 
-/** The host wrappers (digest, webx) strip this stderr line into helper-usage.tsv. */
+/** Prints the helper CLIs' MiniMax/Groq token use on stderr (the host wrappers that logged it were removed). */
 function exitWithHelperUsage(code: number): never {
   process.stderr.write(`helper-tokens: ${helperUsage.input} ${helperUsage.output}\n`);
   process.exit(code);
