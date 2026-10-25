@@ -3,8 +3,6 @@ import test from "node:test";
 import {
   markNudgeDone,
   markNudgeFired,
-  markNudgeSnoozed,
-  NUDGE_SNOOZE_HOURS,
   shouldShowNudge,
 } from "../../src/nudges/store.js";
 import { tempDbPath } from "../helpers/temp.js";

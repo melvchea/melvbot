@@ -3,10 +3,9 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";im
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 
-import { notifyReminderText, parseDcaReply, runCronOnce } from "../src/cron/run_once.js";
+import { runCronOnce } from "../src/cron/run_once.js";
 import { latestSlotToday, slotKey, todaysSlots } from "../src/cron/due.js";
 import { BACKUP_KEEP, backupRestoreReport, runBackup } from "../src/cron/backup.js";
-import { isMonthlyFromWeeklyPrompt, renderMonthlyFromWeekly } from "../src/cron/weekly_reminder.js";
 import { googleHome } from "./helpers/google_home.js";
 import { stubFetch } from "./helpers/fetch.js";
 import { tempDir } from "./helpers/temp.js";

@@ -9,20 +9,17 @@ import {
   isAllowedCliCall,
   toolReadRule,
   webFetch,
-  webFetchMany,
   isHostileHost,
   deprioritiseHostile,
-  webSearch,
   webSearchMany,
   webSearchRead,
-  FETCH_BLOCKED_DOMAINS,
 } from "../../src/assistant/tools.js";
 import { setHostLookupForTests } from "../../src/assistant/net_guard.js";
 import { loadPromptCatalog } from "../../src/assistant/prompt_files.js";
 import { jsonResponse, withFetch, stubFetch } from "../helpers/fetch.js";
 import { tempDir, tempDbPath } from "../helpers/temp.js";
 import { writePrompt } from "../helpers/prompts.js";
-import { lookup } from "node:dns/promises";
+import type { lookup } from "node:dns/promises";
 
 // Bug: Brave usage was read from the real DB, so the fallback test failed once the month's quota was used.
 // Each test gets a fresh DB so provider counts, exhaustion and the page cache never leak between tests.

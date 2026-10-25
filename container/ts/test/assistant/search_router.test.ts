@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { ProviderHttpError } from "../../src/assistant/providers/http_error.js";
-import { configuredProviders, resetBraveExhaustion, routedSearch, type RouterDeps } from "../../src/assistant/search_router.js";
+import { resetBraveExhaustion, routedSearch, type RouterDeps } from "../../src/assistant/search_router.js";
 
 const early = new Date("2026-10-02T00:00:00Z");
 const kagiHit = [{ title: "k", url: "https://k.com", snippet: "k" }];

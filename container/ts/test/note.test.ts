@@ -6,11 +6,9 @@ import path from "node:path";
 import {
   appendNoteHistory,
   assertHouseRulesSize,
-  capNoteBodyForRead,
   overwriteGuardError,
   replaceNoteSection,
 } from "../src/note/notes.js";
-import { runNoteCli } from "../src/note/cli.js";
 import { trashDriveFile } from "../src/note/notes_google.js";
 import { setMelvbotEnv } from "./helpers/env.js";
 import { jsonResponse, stubFetch } from "./helpers/fetch.js";

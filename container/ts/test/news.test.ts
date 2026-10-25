@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { canonicalUrl, parseFeedItems, selectHeadlines, type Headline } from "../src/cron/news.js";
+import { selectHeadlines, type Headline } from "../src/cron/news.js";
 
 const NOW = new Date("2026-10-11T00:00:00Z");
 const headline = (title: string, url: string): Headline => ({

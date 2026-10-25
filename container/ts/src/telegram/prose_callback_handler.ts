@@ -1,7 +1,6 @@
 import { vehicleName } from "../profile.js";
 import type { TelegramApi, TelegramUpdate } from "./api.js";
 import {
-  PROSE_CANCEL,
   PROSE_CONFIRM,
   parseProseCallback,
   storeEvAddOffer,

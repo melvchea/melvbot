@@ -6,10 +6,10 @@ import { stubFetch } from "./helpers/fetch.js";
 
 process.env.MELVBOT_ASSISTANT_CONVERSATION_DB = tempDbPath();
 
-import { TelegramApi, type TelegramMessage } from "../src/telegram/api.js";
+import { TelegramApi } from "../src/telegram/api.js";
 import { TelegramOutbox } from "../src/telegram/outbox.js";
 import { clearAllConfirmations, createConfirmation, latestPendingConfirmationCode } from "../src/assistant/confirm.js";
-import { handleCallback, handleIncoming, withReplyContext } from "../src/daemon.js";
+import { handleCallback, handleIncoming } from "../src/daemon.js";
 import { isConfirmYes } from "../src/telegram/prose_intercept.js";
 import { EMPTY_INLINE_KEYBOARD } from "../src/telegram/progress_edits.js";
 
@@ -42,7 +42,9 @@ test("final edit with a keyboard is not clobbered by a stale queued markup edit"
   const clock = { now: 0 };
   const outbox = new TelegramOutbox({
     clock: () => clock.now,
-    sleep: async (s) => void (clock.now += s),
+    sleep: async (s) => {
+      clock.now += s;
+    },
   });
   const api = new TelegramApi("t", outbox);
   const confirm = { inline_keyboard: [[{ text: "Confirm", callback_data: "c" }]] };

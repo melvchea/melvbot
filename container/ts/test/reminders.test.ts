@@ -3,17 +3,16 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { type DueTask, type TaskJson } from "../src/google/http.js";
+import type { DueTask, TaskJson } from "../src/google/http.js";
 import {
   applyReminderCallback,
   reminderKeyboard,
 } from "../src/reminders/callbacks.js";
-import {
-  type AgendaEvent,
+import type {
+  AgendaEvent,
 } from "../src/reminders/format.js";
-import { isAlertSent, markAlertSent } from "../src/reminders/store.js";
+import { isAlertSent } from "../src/reminders/store.js";
 import {
-  alertTime,
   newTickerState,
   patchCachedEvent,
   selectDueAlerts,

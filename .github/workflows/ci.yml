@@ -44,6 +44,9 @@ jobs:
       - name: Typecheck
         run: npm run build
 
+      - name: Lint
+        run: npm run lint
+
       - name: Test
         run: npm run test:coverage
 

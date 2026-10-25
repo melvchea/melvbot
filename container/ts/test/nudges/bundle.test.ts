@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildHeadsUpBlock, } from "../../src/nudges/bundle.js";
+import { buildHeadsUpBlock } from "../../src/nudges/bundle.js";
 import { markNudgeDone } from "../../src/nudges/store.js";
 import { parseNudgesSection } from "../../src/nudges/toml.js";
 import { tempDbPath } from "../helpers/temp.js";

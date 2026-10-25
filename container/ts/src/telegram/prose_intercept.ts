@@ -7,7 +7,7 @@ import { noteListReply, parseNoteListDirective } from "../note/note_prose.js";
 import { parseSheetListDirective, sheetListReply } from "../sheet/sheet_prose.js";
 import { matchOcrProse } from "./ocr_prose.js";
 import { logIntercept, withTimeout } from "./intercept_log.js";
-import { type LinkListMessage } from "./link_list.js";
+import type { LinkListMessage } from "./link_list.js";
 import { buildEvAddKeyboard, buildSpendAddKeyboard, buildSpendEditKeyboard, storeEvAddOffer, storeSpendAddOffer, storeSpendEditOffer } from "./prose_callbacks.js";
 import { previewSpendEntries, spendConfirmText, spendLabel, writeSpendEntries, type SpendAddDeps } from "./spend_add.js";
 import { planSpendEdit } from "./spend_edit.js";

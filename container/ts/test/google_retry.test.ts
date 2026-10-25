@@ -3,7 +3,7 @@ import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { GOOGLE_RETRY_AFTER_CAP_MS, GOOGLE_RETRY_LIMIT, googleRetryAfterMs } from "../src/google/retry.js";
+import { GOOGLE_RETRY_LIMIT } from "../src/google/retry.js";
 import { driveFile } from "../src/note/notes_google.js";
 import { googleAccessToken } from "../src/google/token.js";
 import { setMelvbotEnv } from "./helpers/env.js";

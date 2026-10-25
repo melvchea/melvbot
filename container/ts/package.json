@@ -8,9 +8,11 @@
     "start": "node dist/index.js",
     "test": "node --import tsx --test --test-timeout=10000 \"test/**/*.test.ts\"",
     "test:coverage": "node --import tsx --test --test-timeout=10000 --experimental-test-coverage --test-coverage-lines=68 --test-coverage-branches=70 --test-coverage-functions=57 --test-coverage-exclude=test/** \"test/**/*.test.ts\"",
+    "lint": "biome lint .",
     "doctor": "node --import tsx src/doctor.ts"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.3",
     "@types/node": "^26.6.5",
     "fast-check": "^4.10.2",
     "tsx": "^4.19.0",

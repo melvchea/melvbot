@@ -12,7 +12,6 @@ import {
   setAgentJobEnabled,
   updateAgentJob,
 } from "../../src/cron/store.js";
-import { runCronCli } from "../../src/cron/cli.js";
 import { setMelvbotEnv } from "../helpers/env.js";
 import { tempDir } from "../helpers/temp.js";
 

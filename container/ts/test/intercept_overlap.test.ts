@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { matchOcrProse } from "../src/telegram/ocr_prose.js";
-import { soleNonemptyLineStripped } from "../src/telegram/prose_line.js";
 import { wouldDispatchProseIntercept } from "../src/telegram/prose_intercept.js";
 
 /** Names of every instant matcher that accepts the message. */

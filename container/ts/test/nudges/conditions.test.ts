@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   evIntervalCondition,
   headroomCondition,
-  isNoteStale,
 } from "../../src/nudges/conditions.js";
 import { FIXTURE_PROFILE, withProfile } from "../helpers/profile.js";
 

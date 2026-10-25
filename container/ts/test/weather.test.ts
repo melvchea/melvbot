@@ -5,9 +5,6 @@ import test from "node:test";
 
 import {
   replacePriorMessages,
-  publishReplacingMessage,
-  readWeatherMessageRef,
-  deleteQuotedStaleWeather,
 } from "../src/telegram/weather_message.js";
 
 import { shouldSendWeather } from "../src/telegram/weather.js";

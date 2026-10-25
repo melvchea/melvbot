@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { parseSpendOps } from "../src/sheet/spend_prose.js";
-import { dispatchProseIntercept, } from "../src/telegram/prose_intercept.js";
+import { dispatchProseIntercept } from "../src/telegram/prose_intercept.js";
 import { handleProseCallback } from "../src/telegram/prose_callback_handler.js";
 import { mockApi } from "./helpers/telegram_api.js";
 import { FIXTURE_PROFILE, withProfile } from "./helpers/profile.js";

@@ -27,7 +27,6 @@ import { invalidateNoteCachesForWrite } from "./system_prompt.js";
 import {
   assertOfferSaveAllowed,
   buildOfferSaveSummary,
-  formatWebSearchResults,
   hashOfferSavePayload,
   isSaveSection,
   melvbotCli,

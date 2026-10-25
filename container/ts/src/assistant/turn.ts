@@ -251,7 +251,9 @@ export async function runTurn(rawOptions: RunTurnOptions, deps: RunTurnDeps = {}
     const known = session ? injectedRecall.get(options.chatKey) : undefined;
     if (session && known?.sessionId === session.sessionId) {
       priorSessionId = session.sessionId;
-      known.keys.forEach((key) => priorKeys.add(key));
+      for (const key of known.keys) {
+        priorKeys.add(key);
+      }
     }
     if (recall.text && !(recall.key !== null && priorKeys.has(recall.key))) {
       userText = `${recall.text}\n\n${userText}`;

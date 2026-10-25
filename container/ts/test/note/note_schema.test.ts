@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { assertNoteBodyNotSheetLike, stripHistorySection, validateProcedureNoteBody } from "../../src/note/note_schema.js";
+import { validateProcedureNoteBody } from "../../src/note/note_schema.js";
 
 test("procedure notes require a Rules section; procedure notes cannot lose the Rules section once they have it", () => {
   assert.throws(

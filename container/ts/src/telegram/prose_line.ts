@@ -1,3 +1,4 @@
+// biome-ignore lint/suspicious/noMisleadingCharacterClass: ZWJ and VS16 are stripped as separate trailing characters on purpose
 const TRAILING_NOISE_RE = /[\s.!?\p{Extended_Pictographic}\u200d\ufe0f]+$/u;
 
 export function soleNonemptyLineStripped(text: string): string | null {

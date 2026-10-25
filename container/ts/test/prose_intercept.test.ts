@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { tempDir } from "./helpers/temp.js";
-import { mockApi, type Media, type Sent } from "./helpers/telegram_api.js";
+import { mockApi, type Sent } from "./helpers/telegram_api.js";
 
 await register(new URL("./resolve_ts.mjs", import.meta.url));
 

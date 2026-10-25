@@ -6,7 +6,7 @@ const TITLE = "🛒 Shopping List";
 const BUTTON_TEXT_LIMIT = 64;
 const FULL_ROW_NAME_CHARS = 20;
 const MAX_TEXT_ITEMS = 100;
-const LEADING_MARKER = /^(?:[-*•·–—]|\d+[.)]|\[[ xX]?\]|[☐☑☒✅✔️❌])\s*/;
+const LEADING_MARKER = /^(?:[-*•·–—]|\d+[.)]|\[[ xX]?\]|[☐☑☒✅✔❌]️?)\s*/;
 
 export type ShoppingItem = { name: string; text?: string; done: boolean };
 export type ShoppingState = {

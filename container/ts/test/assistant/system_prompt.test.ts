@@ -1,21 +1,17 @@
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
-import { mock, test } from "node:test";
+import { test } from "node:test";
 
 import { tempDir } from "../helpers/temp.js";
 import { writePrompt } from "../helpers/prompts.js";
 
-import { rankNotes } from "../../src/assistant/recall.js";
 import {
   buildSystemPrompt,
   clearAboutMeCache,
   clearHouseRulesCache,
   clearNotesIndexCache,
   invalidateNoteCachesForWrite,
-  NOTES_INDEX_CACHE_MS,
-  noteIndexForRecall,
 } from "../../src/assistant/system_prompt.js";
 
 type NoteFixture = {

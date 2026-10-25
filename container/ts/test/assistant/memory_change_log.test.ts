@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { latestUndoableChange, recordChange } from "../../src/memory/change_log.js";
-import { undoLastChange } from "../../src/memory/undo.js";
-import { setMelvbotEnv } from "../helpers/env.js";
 import { tempDbPath } from "../helpers/temp.js";
 
 test("latestUndoableChange is Notes-only and scoped to the chat", () => {

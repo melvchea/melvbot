@@ -6,6 +6,7 @@ import test from "node:test";
 import {
   addItems,
   loadShoppingList,
+  parseTextItems,
   replaceItems,
   saveShoppingList,
 } from "../src/telegram/shopping_list.js";
@@ -24,6 +25,10 @@ test("shopping list load falls back to empty on a malformed items field", () => 
   const file = path.join(dir, "bad.json");
   writeFileSync(file, JSON.stringify({ items: "oops" }));
   assert.deepEqual(loadShoppingList(file), { items: [] });
+});
+
+test("parseTextItems strips a check-mark marker with its variation selector", () => {
+  assert.deepEqual(parseTextItems("✔️ milk\n✅ eggs\n✔ tea"), ["milk", "eggs", "tea"]);
 });
 
 test("replaceItems dedupes names and resets done state", () => {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { mock, test } from "node:test";
+import { test } from "node:test";
 
-import { allMessages, recentTurns, type TurnLogEntry } from "../../src/assistant/conversation_store.js";
+import { allMessages, recentTurns } from "../../src/assistant/conversation_store.js";
 import type { ClaudeTurnOptions, ClaudeTurnResult } from "../../src/assistant/claude_session.js";
 import type { AssistantToml } from "../../src/assistant/toml.js";
 import { withTempDb } from "../helpers/temp.js";

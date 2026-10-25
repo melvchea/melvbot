@@ -7,7 +7,6 @@ import test, { mock } from "node:test";
 import { parseEvAddDirective, parseEvShowDirective } from "../src/sheet/ev_prose.js";
 import { dispatchProseIntercept } from "../src/telegram/prose_intercept.js";
 import { handleProseCallback } from "../src/telegram/prose_callback_handler.js";
-import type { EvIntervalJson } from "../src/sheet/ev.js";
 
 const NOW = new Date("2026-10-05T04:00:00Z");
 

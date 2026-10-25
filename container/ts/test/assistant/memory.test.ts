@@ -1,16 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { tempDbPath } from "../helpers/temp.js";
 
-import {
-  latestEpisode,
-  memoryEval,
-  recordSave,
-  saveEpisode,
-} from "../../src/assistant/conversation_store.js";
 import { selectNoteForInjection } from "../../src/assistant/recall.js";
-import { redactForPrompt } from "../../src/assistant/redact.js";
 import { assertSheetHeaders } from "../../src/sheet/sheets.js";
 
 test("selectNoteForInjection returns only the top note and gates weak scores", () => {

@@ -4,7 +4,7 @@ import { setVideogenRuntime } from "./telegram/videogen_job.js";
 import { stopSessionIdleSweep } from "./assistant/claude_session.js";
 import { stopPromptCacheRefresh } from "./assistant/system_prompt.js";
 import { formatReceipt, friendlyCliOutput } from "./telegram/receipt_text.js";
-import { TelegramApi, type TelegramMessage, type TelegramUpdate } from "./telegram/api.js";
+import type { TelegramApi, TelegramMessage, TelegramUpdate } from "./telegram/api.js";
 import { deliverSegments } from "./telegram/deliver_segments.js";
 import { helpText, isBuiltinCommand, parseCommaCommand, resolveCommaBind } from "./telegram/commands.js";
 import { logIntercept } from "./telegram/intercept_log.js";
@@ -37,7 +37,7 @@ import {
   removeInflightProgress,
   sweepInflightProgressOnBoot,
 } from "./telegram/progress_inflight.js";
-import { buildAssistantQueueCancelKeyboard, newQueueCancelId, parseQueueCancelCallback } from "./telegram/queue_cancel.js";
+import { buildAssistantQueueCancelKeyboard, parseQueueCancelCallback } from "./telegram/queue_cancel.js";
 import {
   addItems,
   buildShoppingKeyboard,
@@ -1010,7 +1010,7 @@ export async function pollLoop(api: TelegramApi): Promise<void> {
   startReminderTicker(api);
   let offset = nextGetUpdatesOffset();
   for (;;) {
-    let updates;
+    let updates: TelegramUpdate[];
     try {
       updates = await api.getUpdates(offset, 50);
     } catch (error) {
