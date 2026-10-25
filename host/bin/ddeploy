@@ -55,10 +55,10 @@ if (( dry )); then
   exit 0
 fi
 ready=0
-for _ in $(seq 15); do # running and not restart-looping for 2 consecutive checks
+for _ in $(seq 60); do # running and not restart-looping for 2 consecutive checks, 0.5s apart
   read -r running restarts < <(docker inspect -f '{{.State.Running}} {{.RestartCount}}' melvbot 2>/dev/null)
   if [[ ${running:-} == true && ${restarts:-1} == 0 ]]; then (( ++ok >= 2 )) && { ready=1; break; }; else ok=0; fi
-  sleep 2
+  sleep 0.5
 done
 if (( ! ready )); then rollback "melvbot not stable after 30s"; exit 1; fi
 out=$(docker exec melvbot melvbot doctor --probe 2>&1); rc=$?
