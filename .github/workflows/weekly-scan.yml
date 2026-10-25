@@ -65,7 +65,7 @@ jobs:
         with:
           scan-type: fs
           scanners: vuln,misconfig
-          severity: HIGH,CRITICAL
+          severity: LOW,MEDIUM,HIGH,CRITICAL
           format: sarif
           output: trivy.sarif
 

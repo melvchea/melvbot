@@ -152,7 +152,9 @@ jobs:
           persist-credentials: false
 
       - name: Build
-        run: docker build -f container/Dockerfile.node -t melvbot-ts:ci container
+        run: |
+          docker buildx create --use --buildkitd-flags '--allow-insecure-entitlement network.host'
+          docker buildx build --allow network.host --load -f container/Dockerfile.node -t melvbot-ts:ci container
 
       - name: Trivy image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -160,7 +162,7 @@ jobs:
           scan-type: image
           image-ref: melvbot-ts:ci
           scanners: vuln
-          severity: HIGH,CRITICAL
+          severity: LOW,MEDIUM,HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "1"
 
