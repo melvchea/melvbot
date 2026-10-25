@@ -31,12 +31,14 @@ rollback() { # rollback <reason>: put the previous image back, if one was saved
   fi
 }
 
-tree=$(git rev-parse HEAD:./ 2>/dev/null) # git tree of container/: same tree, same image
-if (( ! rebuild && ${#services[@]} == 1 )) && [[ -n $tree && -z $(git status --porcelain -- .) ]]; then
-  running=$(docker inspect -f '{{.Image}}' melvbot 2>/dev/null)
-  built=$(docker image inspect -f '{{.Id}}' "melvbot-ts:ctree-$tree" 2>/dev/null)
-  if [[ -n $running && $running == "$built" ]]; then
-    echo "ddeploy: container/ unchanged since the running image, nothing to deploy (--rebuild forces)"; exit 0
+# Image IDs differ between builds of the same source, so record "<container/ git tree> <container id>" after a deploy.
+tree=$(git rev-parse HEAD:./ 2>/dev/null)
+state=${XDG_STATE_HOME:-$HOME/.local/state}/ddeploy-tree
+clean=0; [[ -n $tree && -z $(git status --porcelain -- .) ]] && clean=1
+if (( ! rebuild && clean && ${#services[@]} == 1 )); then
+  read -r cid running < <(docker inspect -f '{{.Id}} {{.State.Running}}' melvbot 2>/dev/null)
+  if [[ ${running:-} == true && "$tree $cid" == "$(cat "$state" 2>/dev/null)" ]]; then
+    echo "ddeploy: container/ unchanged since the running container was deployed, nothing to do (--rebuild forces)"; exit 0
   fi
 fi
 
@@ -73,5 +75,9 @@ if (( ! ready )); then rollback "melvbot not stable after 30s"; exit 1; fi
 out=$(docker exec melvbot melvbot doctor --probe 2>&1); rc=$?
 grep -Ev '^[^:]+: (ok|skip)( |$)' <<<"$out" || echo "doctor: all checks ok"
 if (( rc != 0 )); then rollback "doctor failed (exit $rc)"; exit "$rc"; fi
-[[ -n $tree && -z $(git status --porcelain -- .) ]] && docker tag melvbot-ts:latest "melvbot-ts:ctree-$tree" # marks the image now running
+if (( clean )); then # marks the container now running; a dirty deploy clears it
+  mkdir -p "${state%/*}" && echo "$tree $(docker inspect -f '{{.Id}}' melvbot)" >"$state"
+else
+  rm -f "$state"
+fi
 echo "ddeploy: done in $(( SECONDS - start ))s"
