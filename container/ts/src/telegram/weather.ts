@@ -265,6 +265,33 @@ function nowcastRainTowns(
   return towns;
 }
 
+// NEA has no 4-hour product: beyond the 2-hour nowcast, use the 24-hour forecast periods overlapping the window.
+function periodRainRegions(
+  forecast: Record<string, unknown>,
+  now: Date,
+  hours: number,
+): Record<string, string> | null {
+  const windowEnd = new Date(now.getTime() + hours * 3_600_000);
+  const rainy: Record<string, string> = {};
+  const periods =
+    (forecast.periods as
+      | { time?: { start?: string; end?: string }; regions?: Record<string, string> }[]
+      | undefined) ?? [];
+  for (const period of periods) {
+    const start = parseSgt(period.time?.start);
+    const end = parseSgt(period.time?.end);
+    if (!start || !end || end <= now || start >= windowEnd) {
+      continue;
+    }
+    for (const [region, text] of Object.entries(period.regions ?? {})) {
+      if (isRain(String(text)) && !(region in rainy)) {
+        rainy[region] = String(text);
+      }
+    }
+  }
+  return Object.keys(rainy).length ? rainy : null;
+}
+
 function joinNames(names: string[]): string {
   if (names.length === 1) {
     return names[0];
@@ -457,6 +484,12 @@ export function renderWeatherBullet(
     const areas = areaClause([], towns.map(([area]) => area));
     const chance = rainChance(conditions, {}, towns);
     return `${conditions} in ${window} (${chance}% chance)${areas}, ${low}°C-${high}°C`;
+  }
+  const periodRain = aheadHours > NOWCAST_HOURS ? periodRainRegions(forecast, now, aheadHours) : null;
+  if (periodRain) {
+    const conditions = pickConditions(Object.values(periodRain));
+    const chance = rainChance(conditions, periodRain, []);
+    return `${conditions} in ${window} (${chance}% chance)${areaClause(Object.keys(periodRain), [])}, ${low}°C-${high}°C`;
   }
   const conditions = dryConditions(forecast, nowcastCoversNow(nowcast, now) ? nowcast : null);
   return `${conditions} in ${window} (no rain), ${low}°C-${high}°C`;

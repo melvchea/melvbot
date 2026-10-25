@@ -7,7 +7,7 @@ import {
   replacePriorMessages,
 } from "../src/telegram/weather_message.js";
 
-import { shouldSendWeather } from "../src/telegram/weather.js";
+import { renderWeatherBullet, shouldSendWeather } from "../src/telegram/weather.js";
 import { tempDir } from "./helpers/temp.js";
 
 test("morning update deletes every message of the prior run and records the new ones", async () => {
@@ -31,4 +31,17 @@ test("hourly weather posts every hour 06:00-22:00 SGT regardless of rain or PM2.
   assert.equal(shouldSendWeather(22), true);
   assert.equal(shouldSendWeather(5), false);
   assert.equal(shouldSendWeather(23), false);
+});
+
+test("4-hour window uses 24h forecast periods overlapping now..now+4h", () => {
+  const now = new Date("2026-10-25T12:00:00+08:00");
+  const period = (start: string, end: string, text: string) => ({
+    time: { start: `2026-10-25T${start}:00+08:00`, end: `2026-10-25T${end}:00+08:00` },
+    regions: { central: text, east: text, north: text, south: text, west: text },
+  });
+  const general = { temperature: { high: 33, low: 24 }, forecast: "Fair" };
+  const wet = { general, periods: [period("10:00", "14:00", "Thundery Showers")] };
+  const later = { general, periods: [period("17:00", "23:00", "Thundery Showers")] };
+  assert.match(renderWeatherBullet(wet, null, now, 4), /^Thundery Showers in next 4 hours \(\d+% chance\)/);
+  assert.match(renderWeatherBullet(later, null, now, 4), /\(no rain\)/);
 });
