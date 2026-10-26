@@ -12,9 +12,15 @@ import {
 import { appendNamed, namedRows, sheetValues, writeNamed } from "./sheets.js";
 import { listSpendRows, type SpendEntryJson, type SpendRow } from "./spend_rows.js";
 import { loadSheetsToml } from "./toml.js";
-import type { WriteReceipt } from "../memory/change_log.js";
+import { recordChange, type WriteReceipt } from "../memory/change_log.js";
 import { findNearDuplicateSpend, type SpendNearDuplicate } from "./spend_dedupe.js";
 import { currentSourceRef } from "../source_ref.js";
+
+export const SPEND_ADD_ACTION = "spend add";
+
+export function spendLogTarget(card: { owner: string; card: string }): string {
+  return `${card.owner}/${card.card}`;
+}
 
 function entryJson(row: SpendRow): SpendEntryJson {
   return {
@@ -146,6 +152,14 @@ export async function upsertSpend(
   const persisted =
     card.owner === "owner1" ? await putOwner1(pending, existing) : await putOwner2(pending, existing);
   const entry = entryJson(persisted);
+  if (existing === undefined) {
+    // History only: lets the Morning Update spend-gap nudge see backfills dated in past cycles.
+    try {
+      recordChange({ action: SPEND_ADD_ACTION, target: spendLogTarget(card), before: null, after: entry });
+    } catch (error) {
+      console.error("spend add: change_log write failed", error);
+    }
+  }
   let receipt: WriteReceipt | undefined;
   if (!writeOptions.skipChangeLog && !writeOptions.internalWrite) {
     receipt = {

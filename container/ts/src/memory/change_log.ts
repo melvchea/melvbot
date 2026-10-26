@@ -102,6 +102,19 @@ export function recordChange(entry: {
   }
 }
 
+/** created_at of the newest `action` entry for `target`, or null when none. */
+export function lastChangeAt(action: string, target: string, dbPath = conversationDbPath()): string | null {
+  const db = openDb(dbPath);
+  try {
+    const row = db
+      .prepare("SELECT created_at FROM change_log WHERE action = ? AND target = ? ORDER BY id DESC LIMIT 1")
+      .get(action, target) as { created_at: string } | undefined;
+    return row ? row.created_at : null;
+  } finally {
+    db.close();
+  }
+}
+
 /** Newest not-yet-undone Note change, limited to `chatKey` when given. */
 export function latestUndoableChange(
   chatKey: string | null = null,

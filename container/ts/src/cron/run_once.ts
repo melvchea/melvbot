@@ -240,17 +240,19 @@ async function sendMorningUpdate(
     if (payload.entities?.length) {
       extra.entities = payload.entities;
     }
-    const body = isLast && headsUp ? `${payload.text}\n\n${headsUp.text}` : payload.text;
-    if (isLast) {
-      const rows = [
-        ...(headsUp && headsUp.buttons.length > 0 ? nudgeButtonsKeyboard(headsUp.buttons).inline_keyboard : []),
-        ...taskButtonRows(tasks),
-      ];
-      if (rows.length > 0) {
-        extra.reply_markup = { inline_keyboard: rows };
-      }
+    if (isLast && tasks.length > 0) {
+      extra.reply_markup = { inline_keyboard: taskButtonRows(tasks) };
     }
-    const sent = await api.sendMessage(Number(dest), body, extra);
+    const sent = await api.sendMessage(Number(dest), payload.text, extra);
+    requireSent(sent);
+    const id = (sent as { message_id?: unknown } | null)?.message_id;
+    if (typeof id === "number") {
+      sentIds.push(id);
+    }
+  }
+  if (headsUp) {
+    const keyboard = headsUp.buttons.length > 0 ? nudgeButtonsKeyboard(headsUp.buttons) : undefined;
+    const sent = await api.sendMessage(Number(dest), headsUp.text, keyboard ? { reply_markup: keyboard } : {});
     requireSent(sent);
     const id = (sent as { message_id?: unknown } | null)?.message_id;
     if (typeof id === "number") {

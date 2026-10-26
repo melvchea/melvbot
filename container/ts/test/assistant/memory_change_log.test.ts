@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { latestUndoableChange, recordChange } from "../../src/memory/change_log.js";
+import { lastChangeAt, latestUndoableChange, recordChange } from "../../src/memory/change_log.js";
 import { tempDbPath } from "../helpers/temp.js";
 
 test("latestUndoableChange is Notes-only and scoped to the chat", () => {
@@ -13,4 +13,13 @@ test("latestUndoableChange is Notes-only and scoped to the chat", () => {
   assert.equal(latestUndoableChange("chat-b", dbPath)?.target, "family-eat");
   assert.equal(latestUndoableChange("chat-c", dbPath), null);
   assert.equal(latestUndoableChange(null, dbPath)?.target, "family-eat");
+});
+
+test("lastChangeAt finds the newest spend add per card and never counts as undoable", () => {
+  const dbPath = tempDbPath();
+  assert.equal(lastChangeAt("spend add", "owner1/card1", dbPath), null);
+  recordChange({ action: "spend add", target: "owner1/card1", before: null, after: {}, dbPath });
+  assert.ok(lastChangeAt("spend add", "owner1/card1", dbPath));
+  assert.equal(lastChangeAt("spend add", "owner2/card2", dbPath), null);
+  assert.equal(latestUndoableChange(null, dbPath), null);
 });

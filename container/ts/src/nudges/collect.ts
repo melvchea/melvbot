@@ -5,9 +5,11 @@
  */
 import { countEpisodes } from "../assistant/conversation_store.js";
 import { tasksList } from "../google/http.js";
+import { lastChangeAt } from "../memory/change_log.js";
 import { getNote, listNotes } from "../note/notes.js";
 import { listEv } from "../sheet/ev_list.js";
 import { parseMoney } from "../sheet/spend_cycle.js";
+import { SPEND_ADD_ACTION, spendLogTarget } from "../sheet/spend_write.js";
 import { listSpend } from "../sheet/spend_list.js";
 import type { AutoHistoryCount, CycleSpendTotal, HeadsUpCardInput, HeadsUpInput, MonthlyReviewInput, StaleNoteInput } from "./bundle.js";
 import { firstUpcomingDate, parseWatchList, TASK_DEADLINE_DAYS, daysUntil } from "./conditions.js";
@@ -35,6 +37,11 @@ function ymd(now: Date): string {
 async function headsUpCard(owner: "owner1" | "owner2", card: "card1" | "card2", now: Date): Promise<HeadsUpCardInput> {
   const summary = await listSpend({ owner, card, cycleDate: ymd(now) });
   const lastEntry = summary.entries.at(-1);
+  const loggedAt = lastChangeAt(SPEND_ADD_ACTION, spendLogTarget({ owner, card }));
+  const loggedOn = loggedAt ? ymd(new Date(loggedAt)) : null;
+  const sheetOn = lastEntry ? lastEntry.spent_on : null;
+  // A Telegram store or backfill counts as logged even when its spent_on is in a past cycle.
+  const lastSpendOn = loggedOn && (!sheetOn || loggedOn > sheetOn) ? loggedOn : sheetOn;
   return {
     owner,
     card,
@@ -43,7 +50,7 @@ async function headsUpCard(owner: "owner1" | "owner2", card: "card1" | "card2", 
     limit: summary.limit === null ? null : parseMoney(summary.limit),
     cycleStart: summary.cycle_start,
     cycleEnd: summary.cycle_end,
-    lastSpendOn: lastEntry ? lastEntry.spent_on : null,
+    lastSpendOn,
   };
 }
 
