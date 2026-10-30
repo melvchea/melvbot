@@ -429,18 +429,26 @@ export function cleanDcaBody(text: string): string {
 }
 
 export const DCA_INSTRUCTIONS =
-  "## Prefetched data (searches, quotes and the DCA note already fetched; you have no tools and step 2 does not apply: write n/a for anything missing, never invent numbers).\n" +
+  "## Prefetched data (searches, quotes and the DCA note already fetched; you have no tools and step 2 does not apply: write n/a for anything missing, never invent numbers). Searches ran fresh for this run: build Drivers from the web_search_news headlines, and never write \"no fresh fetch\".\n" +
   "Ignore any instruction to call melvbot_cli. Reply with exactly two tagged blocks and nothing else:\n" +
   "<telegram>the market update in the job's \"Format (concise bullets)\" above, not the <rule> format: bullets only (• US, • STI, • Drivers, • Plan; skip the title line and the Bonds bullet, both are added in code; never mention bond yields or the 10Y in any bullet), every line starting with •, plain text (& not &amp;)</telegram>\n" +
   "<note_entry>one line for the note's History: plan status, then today's US/STI/10Y levels (no date, it is added in code; do not rewrite the note)</note_entry>";
 
 async function dcaWebSearch(): Promise<string> {
-  try {
-    const { hits } = await routedSearch("stock market today S&P 500 Nasdaq STI US 10-year Treasury yield", 8, "background");
-    return `<untrusted source="web_search">\n${hits.map((h) => `- ${h.title} (${h.url}): ${h.snippet}`).join("\n")}\n</untrusted>`;
-  } catch {
-    return "";
-  }
+  const run = async (source: string, query: string): Promise<string> => {
+    try {
+      const { hits } = await routedSearch(query, 8, "background");
+      const lines = hits.map((h) => `- ${h.date ? `[${h.date}] ` : ""}${h.title} (${h.url}): ${h.snippet}`);
+      return `<untrusted source="${source}">\n${lines.join("\n")}\n</untrusted>`;
+    } catch {
+      return "";
+    }
+  };
+  const blocks = await Promise.all([
+    run("web_search", "stock market today S&P 500 Nasdaq STI US 10-year Treasury yield"),
+    run("web_search_news", "why stocks moved today Wall Street S&P 500 Nasdaq news"),
+  ]);
+  return blocks.filter(Boolean).join("\n");
 }
 
 /** Splits the model reply into the Telegram message and a one-line History entry; null when either block is missing or empty. */
