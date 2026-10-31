@@ -1,4 +1,8 @@
-const MINIMAX_CHAT = "https://api.minimax.io/v1/chat/completions";
+import { query, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import { subscriptionEnv } from "../assistant/claude_session.js";
+import { DEFAULT_MODEL } from "../assistant/toml.js";
+
+const MINIMAX_CHAT ="https://api.minimax.io/v1/chat/completions";
 const MINIMAX_VIDEO_GENERATION = "https://api.minimax.io/v1/video_generation";
 const MINIMAX_VIDEO_QUERY = "https://api.minimax.io/v1/query/video_generation";
 const MINIMAX_VIDEO_RETRIEVE = "https://api.minimax.io/v1/files/retrieve";
@@ -146,6 +150,62 @@ export async function ocrImage(bytes: Buffer, mime = "image/jpeg"): Promise<stri
     temperature: 0,
     emptyMessage: OCR_EMPTY,
   });
+}
+
+/** OCR via Haiku 5.5 on the Claude subscription login (no tools, no session); MiniMax `ocrImage` stays for the prose intercept. */
+export async function ocrImageHaiku(bytes: Buffer, mime = "image/jpeg"): Promise<string> {
+  if (!VISION_MIMES.has(mime)) {
+    throw new Error("unsupported image type.");
+  }
+  if (bytes.length > IMAGE_BYTE_LIMIT) {
+    throw new Error("image is larger than 10 MB.");
+  }
+  const media_type = mime as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+  const message: SDKUserMessage = {
+    type: "user",
+    parent_tool_use_id: null,
+    message: {
+      role: "user",
+      content: [
+        { type: "image", source: { type: "base64", media_type, data: bytes.toString("base64") } },
+        { type: "text", text: OCR_PROMPT },
+      ],
+    },
+  };
+  async function* input(): AsyncGenerator<SDKUserMessage> {
+    yield message;
+  }
+  const abortController = new AbortController();
+  const timer = setTimeout(() => abortController.abort(), VISION_REASONING_TIMEOUT_MS);
+  const run = query({
+    prompt: input(),
+    options: {
+      model: DEFAULT_MODEL,
+      tools: [],
+      settingSources: [],
+      persistSession: false,
+      maxTurns: 1,
+      env: subscriptionEnv(),
+      abortController,
+    },
+  });
+  let text = "";
+  try {
+    for await (const event of run) {
+      if (event.type === "result") {
+        if (event.subtype !== "success" || event.is_error) {
+          throw new Error(event.subtype === "success" ? event.result : event.errors.join("; "));
+        }
+        text = event.result.trim();
+      }
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!text) {
+    throw new Error(OCR_EMPTY);
+  }
+  return text;
 }
 
 export async function understandVideo(
