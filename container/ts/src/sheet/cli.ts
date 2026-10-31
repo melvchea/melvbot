@@ -1,4 +1,4 @@
-import { cardLabel, vehicleName } from "../profile.js";
+import { cardLabel, displayNames, vehicleName } from "../profile.js";
 import { EV_ADD_USAGE, SPEND_ADD_USAGE, parseEvAddArgs, parseSpendAddBatch } from "./add_args.js";
 import { applySheetRename, type SheetName } from "./sheet_prose.js";
 import { listSpend, listSpendAll } from "./spend_list.js";
@@ -22,6 +22,17 @@ const SHEET_KEYS = new Set<SheetKey>(["owner1", "owner2", "ev"]);
 
 function asSheetKey(value: string | undefined): SheetKey | null {
   return value !== undefined && (SHEET_KEYS as Set<string>).has(value) ? (value as SheetKey) : null;
+}
+
+/** Rules args after `set|delete`: the Sheet by key or display name, an optional card token (one card per owner) dropped, then the rest. */
+export function parseRulesArgs(rest: string[]): { sheet: SheetKey | null; rest: string[] } {
+  const names = displayNames();
+  const sameName = (a: string | undefined, b: string): boolean => a !== undefined && a.toLowerCase() === b.toLowerCase();
+  const sheet =
+    asSheetKey(rest[0]) ??
+    (sameName(rest[0], names.owner1) ? "owner1" : sameName(rest[0], names.owner2) ? "owner2" : sameName(rest[0], names.vehicle) ? "ev" : null);
+  const cardToken = [names.card1, names.card2, "card1", "card2"].some((card) => sameName(rest[1], card));
+  return { sheet, rest: cardToken && sheet !== "ev" ? rest.slice(2) : rest.slice(1) };
 }
 
 export const SHEET_PIN_KEYS: Record<string, string> = {
@@ -95,9 +106,8 @@ function usage(text = SHEET_USAGE): number {
 export async function runSheetCli(args: string[]): Promise<number> {
   try {
     if (args[0] === "rules" && args[1] === "set") {
-      const sheet = asSheetKey(args[2]);
-      const key = args[3];
-      const value = args[4];
+      const { sheet, rest } = parseRulesArgs(args.slice(2));
+      const [key, value] = rest;
       if (!sheet || !key || value === undefined) {
         return usage(RULES_SET_USAGE);
       }
@@ -105,8 +115,8 @@ export async function runSheetCli(args: string[]): Promise<number> {
       return 0;
     }
     if (args[0] === "rules" && args[1] === "delete") {
-      const sheet = asSheetKey(args[2]);
-      const key = args[3];
+      const { sheet, rest } = parseRulesArgs(args.slice(2));
+      const key = rest[0];
       if (!sheet || !key) {
         return usage();
       }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { parseRulesArgs } from "../../src/sheet/cli.js";
 import { deleteSheetRule, setSheetRule } from "../../src/sheet/rules_write.js";
 import { stubFetch } from "../helpers/fetch.js";
 import { googleHome } from "../helpers/google_home.js";
@@ -105,4 +106,11 @@ test("a money value of 800 or SGD 800 is refused, and 800.00 is accepted; deleti
       cleanup();
     }
   }
+});
+
+test("rules args accept an owner or card display name, as the model passes them", () => {
+  assert.deepEqual(parseRulesArgs(["owner1", "target", "1000.00"]), { sheet: "owner1", rest: ["target", "1000.00"] });
+  assert.deepEqual(parseRulesArgs(["Owner 1", "Card 1", "target", "1000.00"]), { sheet: "owner1", rest: ["target", "1000.00"] });
+  assert.deepEqual(parseRulesArgs(["owner2", "card2", "limit", "5"]), { sheet: "owner2", rest: ["limit", "5"] });
+  assert.equal(parseRulesArgs(["nobody", "target", "1"]).sheet, null);
 });
