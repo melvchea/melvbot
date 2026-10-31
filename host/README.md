@@ -14,7 +14,7 @@ Host-side tooling for working on melvbot with Claude Code. `bin/` is on `PATH`. 
   - `--outcome`: Claude Code $ per day at list prices (cache writes at the 5m rate) next to git commits that day, and $ per commit.
   - `--sessions`: top 20 sessions by est $ (subagents folded into their parent): start, assistant msgs, input / cache write / cache read / output, commits during the session (UTC start..last msg; overlapping sessions both count a commit), $/commit. `!` = over $1.5/commit or no commit; long sessions show as huge cache-read totals.
   - `--review`: `--outcome` + top 5 `--sessions`. Run first on any cost/optimisation request; act on rising $/commit or `!` sessions. Weekly: `dsaved --review 7`.
-- `dprices [--force]`: scrapes the official pricing page for Opus/Sonnet/Haiku 5.5 into `prices.tsv` at most once per day (SGT); run by a `SessionStart` hook in `~/.claude/settings.json` on every `claude` launch, silent on failure (`dsaved` then keeps the last file or built-in defaults). If the page layout changes the parse fails and the file stays as is.
+- `dprices [--force]`: scrapes the official pricing page for Opus/Sonnet/Haiku 5.5 into `prices.tsv` (plus a `haiku_long` row for Haiku prompts over 100K tokens, which `dsaved` applies per message) at most once per day (SGT); run by a `SessionStart` hook in `~/.claude/settings.json` on every `claude` launch, silent on failure (`dsaved` then keeps the last file or built-in defaults). If the page layout changes the parse fails and the file stays as is.
 - Intercept miss check (weekly): `ddb conversation "select substr(created_at,1,10) d, substr(replace(prompt,char(10),' '),1,90) p from turn_log where route='claude' and prompt glob '[sSlLaAdDuU][hHiIdDeEpP]*' and created_at>=date('now','-7 day') order by id desc"`; read for show/list/add/delete/update phrasings that should have matched. Per-route hits come from `dturns`. Remove an intercept only after 30 days of zero hits.
 
 CI (`.github/workflows/ci.yml`, default `permissions: {}`, `contents: read` per job): `container ts` (build, tests with coverage), `secret-guard` (guard + gitleaks), `workflow-lint` (zizmor), `shellcheck + hadolint` (warning level, hadolint ignores DL3008), `dependency-review` (PRs only, fails on high), `code-scanning alerts`. `weekly-scan.yml` (Sat 21:17 UTC, or `gh workflow run "Weekly scan" -R melvchea/melvbot`): Trivy fs + Dockerfile (gating). Secret-scanning generic-password and validity checks are paid, not enabled; private vulnerability reporting is a manual repo setting.
@@ -22,7 +22,11 @@ CI (`.github/workflows/ci.yml`, default `permissions: {}`, `contents: read` per 
 Removed (history): `digest`, `webx`, `big-output-nudge`, `coder` and its `coder-result` hook (2026-10-25; MiniMax helpers disabled 2026-10-19), `dexplore`, `offload-guard`.
 
 ## Delegation
-Main session = Sonnet 5.5 (medium). No named sub-agent. Non-LLM first: `rg`, `sed -n`, `jq`, `git diff --stat`; edits ≤50 lines inline (smallest unique Edit anchor, no full-file Write); plan and search inline; never `fork`.
+Main session = Haiku 5.5 (high). No named sub-agent. Non-LLM first: `rg`, `sed -n`, `jq`, `git diff --stat`; edits ≤50 lines inline with no review (smallest unique Edit anchor, no full-file Write); plan and search inline; never `fork`.
+
+Reviews for larger changes: an ad-hoc Sonnet 5.5 high agent (`Agent` `general-purpose`, `model: sonnet`, `effort: high`) reviews the posted spec before implementation and the diff after, with only the spec or diff plus callers as input. After two rejected reviews, escalate the main session to Sonnet 5.5 high or Opus 5.5 medium.
+
+The main agent implements itself; the Haiku delegate below is only for mechanical work, heavy reading, or a main context over ~100K tokens.
 
 Launch an ad-hoc Haiku 5.5 medium agent (`Agent` with `subagent_type: general-purpose`, `model: haiku`, `effort: medium`) only when it saves cost per completed outcome:
 - the spec (goal, exact file:line ranges, verify command) costs far fewer tokens than the diff, i.e. mechanical or repeated patterns, or heavy file reading/summarising whose raw output would otherwise sit in Sonnet's context (multi-page web research, 3+ fetches);
@@ -48,5 +52,6 @@ Launch an ad-hoc Haiku 5.5 medium agent (`Agent` with `subagent_type: general-pu
 
 | Role | Model |
 |---|---|
-| Main session | Sonnet 5.5, medium |
+| Main session | Haiku 5.5, high |
+| Reviewer (spec before, diff after) | Sonnet 5.5, high |
 | Ad-hoc delegate | Haiku 5.5, medium |

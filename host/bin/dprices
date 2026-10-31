@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Refresh API list prices (USD/MTok) for Opus/Sonnet/Haiku 5.5 into ~/.local/state/melvbot/prices.tsv, at most once per day (Asia/Singapore).
-#   dprices [--force]   columns: model in out cache_write_5m cache_write_1h cache_read; read by dsaved. SessionStart hook runs it; silent on failure. No LLM.
+#   dprices [--force]   columns: model in out cache_write_5m cache_write_1h cache_read; a <model>_long row holds the over-100K-prompt tier (Haiku); read by dsaved. SessionStart hook runs it; silent on failure. No LLM.
 case ${1:-} in -h|--help) sed -n 2,3p "$0" | cut -c3-; exit 0 ;; esac
 dir=${XDG_STATE_HOME:-$HOME/.local/state}/melvbot
 out=$dir/prices.tsv
@@ -14,11 +14,13 @@ import re, sys
 t = sys.stdin.read()
 rows = []
 for m in ("Opus", "Sonnet", "Haiku"):
-    r = re.search(r"Claude %s 5\.5 [^$]{5,160}?((?:\$[0-9.]+ / MTok(?: for prompts up to [0-9,]+ tokens)? ?){5})" % m, t)
+    r = re.search(r"Claude %s 5\.5 [^$]{5,160}?((?:\$[0-9.]+ / MTok(?: for prompts up to [0-9,]+ tokens)? ?){5})((?:\$[0-9.]+ / MTok(?: for prompts over [0-9,]+ tokens)? ?){5})?" % m, t)
     if not r:
         sys.exit(1)
     rows.append([m.lower()] + re.findall(r"\$([0-9.]+)", r.group(1)))
+    if r.group(2):
+        rows.append([m.lower() + "_long"] + re.findall(r"\$([0-9.]+)", r.group(2)))
 for row in rows:
     print("\t".join(row))
-' >"$tmp" && [[ $(wc -l <"$tmp") -eq 3 ]] && mv -- "$tmp" "$out" || rm -f -- "$tmp"
+' >"$tmp" && [[ $(wc -l <"$tmp") -ge 3 ]] && mv -- "$tmp" "$out" || rm -f -- "$tmp"
 exit 0
