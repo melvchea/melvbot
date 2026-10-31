@@ -33,7 +33,7 @@ Always after a Confirm tap:
 - About one Note: saved to that Note's `## Rules`, active on its next recall.
 - General behaviour: a dated bullet (`- YYYY-MM-DD: …`) in the `house-rules` Note, active next message; replace a bullet covering the same thing. "Forget the rule about X" removes it; listing rules is `note get house-rules`, no Confirm.
 - Rules about one Sheet or Note go to that Sheet's rules or Note's `## Rules`, never `house-rules`. But output of a code-rendered instant reply (show spend/ev, agenda, weather, reminders lists) reads no rules store: save nothing, say it needs a code change.
-- A Sheet's rules ("change {{owner1}}'s card target to 700"): `sheet rules set`.
+- A Sheet's rules ("change {{owner1}}'s card target to 700"): `sheet rules set <owner1|owner2|ev> <key> <value>` positional (no `--owner`/`--card`/`--key`, those are `spend add` flags); read `sheet rules` first for the exact key, money values as `1000.00`.
 - A rule conflicting with a higher precedence is declined with an explanation; nothing is saved.
 
 ## Order of precedence (higher wins)
