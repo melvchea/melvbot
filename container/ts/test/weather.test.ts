@@ -7,7 +7,7 @@ import {
   replacePriorMessages,
 } from "../src/telegram/weather_message.js";
 
-import { renderWeatherBullet, shouldSendWeather } from "../src/telegram/weather.js";
+import { renderWeatherBullet, renderWindClause, shouldSendWeather } from "../src/telegram/weather.js";
 import { tempDir } from "./helpers/temp.js";
 
 test("morning update deletes every message of the prior run and records the new ones", async () => {
@@ -50,4 +50,10 @@ test("4-hour window takes hours 2-4 rain from the hourly outlook", () => {
   assert.match(bullet(0, 95, 90), /\(no rain\)/);
   assert.match(bullet(5, 95, 90), /\(no rain\)/);
   assert.match(bullet(3, 80, 30), /\(no rain\)/);
+});
+
+test("wind clause uses circular mean so 350° and 10° average to N", () => {
+  assert.equal(renderWindClause([350, 10, 0]), ", Wind N");
+  assert.equal(renderWindClause([100, 106, 139]), ", Wind SE");
+  assert.equal(renderWindClause([]), "");
 });

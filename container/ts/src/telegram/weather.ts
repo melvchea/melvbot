@@ -3,6 +3,8 @@ const FORECAST_24H =
 const FORECAST_2H =
   "https://api.data.gov.sg/v1/environment/2-hour-weather-forecast";
 const PM25_URL = "https://api-open.data.gov.sg/v2/real-time/api/pm25";
+const WIND_URL = "https://api-open.data.gov.sg/v2/real-time/api/wind-direction";
+const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const OUTLOOK_URL =
   "https://api.open-meteo.com/v1/forecast?latitude=1.3521&longitude=103.8198" +
   "&hourly=precipitation_probability,weather_code&forecast_hours=6&timezone=Asia%2FSingapore&timeformat=unixtime";
@@ -171,6 +173,32 @@ export async function fetchPm25Item(): Promise<Record<string, unknown> | null> {
     data?: { items?: Record<string, unknown>[] };
   };
   return payload.data?.items?.[0] ?? null;
+}
+
+export async function fetchWindDegrees(): Promise<number[]> {
+  const response = await fetch(WIND_URL, {
+    headers: { "user-agent": USER_AGENT },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    throw new Error(`NEA wind fetch failed: ${WIND_URL}`);
+  }
+  const payload = (await response.json()) as {
+    data?: { readings?: { data?: { value?: unknown }[] }[] };
+  };
+  const rows = payload.data?.readings?.[0]?.data ?? [];
+  return rows.map((row) => row.value).filter((value): value is number => typeof value === "number");
+}
+
+export function renderWindClause(degrees: number[] | null | undefined): string {
+  if (!degrees?.length) {
+    return "";
+  }
+  const rad = (deg: number) => (deg * Math.PI) / 180;
+  const x = degrees.reduce((sum, deg) => sum + Math.sin(rad(deg)), 0);
+  const y = degrees.reduce((sum, deg) => sum + Math.cos(rad(deg)), 0);
+  const mean = ((Math.atan2(x, y) * 180) / Math.PI + 360) % 360;
+  return `, Wind ${COMPASS[Math.round(mean / 45) % 8]}`;
 }
 
 function intField(value: unknown, fallback: number): number {
@@ -544,6 +572,7 @@ export async function formatWeatherMessage(
     forecast?: Record<string, unknown>;
     nowcast?: Record<string, unknown> | null;
     pm25?: Record<string, unknown> | null;
+    wind?: number[] | null;
     outlook?: HourlyOutlook | null;
     cronLayout?: boolean;
   } = {},
@@ -561,6 +590,14 @@ export async function formatWeatherMessage(
       pm25 = null;
     }
   }
+  let wind = options.wind;
+  if (wind === undefined && live) {
+    try {
+      wind = await fetchWindDegrees();
+    } catch {
+      wind = null;
+    }
+  }
   const raining = nowcastHasRain(nowcast, now);
   const band = pm25BandFromItem(pm25);
   let aheadHours = windowHours(raining, band);
@@ -576,7 +613,7 @@ export async function formatWeatherMessage(
     aheadHours = NOWCAST_HOURS;
   }
   const bullet = renderWeatherBullet(forecast, nowcast, now, aheadHours, outlook);
-  const clause = renderPm25Clause(pm25);
+  const clause = renderWindClause(wind) + renderPm25Clause(pm25);
 
   const parts = sgtParts(now);
   const title = `Singapore Weather ${formatCronWeatherDate(now)} ${pad2(parts.hour)}:${pad2(parts.minute)}`;
