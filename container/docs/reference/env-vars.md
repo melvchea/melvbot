@@ -7,7 +7,7 @@ Set in `/etc/melvbot/melvbot.env` (root-only) and injected by Docker Compose.
 | `CLAUDE_CODE_OAUTH_TOKEN` | Claude subscription token (`claude setup-token`). `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` are removed from the agent on purpose. |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Bot token and the single chat it serves. |
 | `GROQ_API_KEY` | Voice transcription and the first fallback provider. |
-| `MINIMAX_API_KEY` | Photo and video reading, image generation, second fallback provider, and optional TTS. Token Plan ends 28 Apr 2027; renew before then. |
+| `MINIMAX_API_KEY` | Video reading, video generation, second fallback provider, and optional TTS. Token Plan ends 28 Apr 2027; renew before then. |
 | `KAGI_SESSION_LINK` | Kagi session link (`https://kagi.com/search?token=...`, from Kagi settings). First web search provider; unset skips Kagi. Melvbot exchanges it for a `kagi_session` cookie and reads `/html/search`; three failed or empty searches in a row skip Kagi for 15 min. |
 | `FIRECRAWL_API_KEY` | Firecrawl key: last web search provider (after Kagi and Brave), and the first page-read step (`/v2/scrape`). |
 | `BRIGHTDATA_API_KEY` | Bright Data Web Unlocker key: second page-read step after Firecrawl (HTML run through the in-process extractor). Unset skips it. |

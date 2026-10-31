@@ -2,7 +2,7 @@
 
 Telegram personal assistant. TypeScript daemon in `container/ts`, run as the `melvbot` Docker container.
 Agent = Claude Agent SDK, Haiku 5.5 (effort low by default; effort medium per turn on `think:` or complex-prose triggers), Claude subscription login only (no API key; shares the Pro quota with the host CLI).
-Routing per message: non-LLM `,commands` and prose intercepts (`src/telegram/prose_intercept.ts`) → Claude (Haiku). Media: images (vision, OCR) and video → MiniMax-M3; voice and audio files → Groq Whisper STT. Intercept rules (when to add, measure, fix, remove): `container/docs/explanation/architecture.md`. Every turn after the intercepts is logged with its prompt in `turn_log` (`melvbot turns`, host `dturns` for the weekly review).
+Routing per message: non-LLM `,commands` and prose intercepts (`src/telegram/prose_intercept.ts`) → Claude (Haiku). Media: images (vision, OCR) → Haiku 5.5 (Agent SDK image block); video → MiniMax-M3; voice and audio files → Groq Whisper STT. Intercept rules (when to add, measure, fix, remove): `container/docs/explanation/architecture.md`. Every turn after the intercepts is logged with its prompt in `turn_log` (`melvbot turns`, host `dturns` for the weekly review).
 
 Runtime rule files: `host/assistant/prompts/`; host helpers and hooks: `host/README.md`.
 

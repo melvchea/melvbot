@@ -9,10 +9,9 @@ always: false
 None of these start an agent turn.
 
 **Photos and OCR**
-- `,list` / `,l` taps are `callback_query` (`sl:`), never `.voice`. `,list` photo import is MiniMax (`MINIMAX_API_KEY`).
-- Sole-line OCR prose (`ocr`, `ocr this`, `please ocr the photo`, etc.) runs default MiniMax OCR on the remembered photo.
-- A photo or supported image file is read by MiniMax-M3 (`captionImage`: instruction text, image data URL, `detail: default`, `thinking: adaptive` so the model reasons only when the question needs it) when the instruction is the caption or the next text message. The read does not block later updates. OCR stays `thinking: disabled`.
-- A photo with no caption stays remembered until that next text, `,list` or OCR.
+- `,list` / `,l` taps are `callback_query` (`sl:`), never `.voice`. `,list` photo import is read by Haiku 5.5 (subscription login).
+- Sole-line OCR prose (`ocr`, `ocr this`, `please ocr the photo`, etc.) runs Haiku 5.5 OCR on the remembered photo.
+- A photo or supported image file is read by Haiku 5.5 (`captionImage`: image block plus the instruction text, no tools) when the instruction is the caption or the next text message. The read does not block later updates.- A photo with no caption stays remembered until that next text, `,list` or OCR.
 
 **Image generation**
 - Image prose (`generate an image of …`, `make a picture of …`, `draw me a photo of …`, `please create an illustration of …`, `imagegen …`, optional `can you` / `could you` / trailing `please`) is a Claude turn. No image-generation tool exists now: say so, and do not curl MiniMax.

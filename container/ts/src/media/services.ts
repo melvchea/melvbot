@@ -2,29 +2,18 @@ import { query, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import { subscriptionEnv } from "../assistant/claude_session.js";
 import { DEFAULT_MODEL } from "../assistant/toml.js";
 
-const MINIMAX_CHAT ="https://api.minimax.io/v1/chat/completions";
+const MINIMAX_CHAT = "https://api.minimax.io/v1/chat/completions";
 const MINIMAX_VIDEO_GENERATION = "https://api.minimax.io/v1/video_generation";
 const MINIMAX_VIDEO_QUERY = "https://api.minimax.io/v1/query/video_generation";
 const MINIMAX_VIDEO_RETRIEVE = "https://api.minimax.io/v1/files/retrieve";
 const MINIMAX_VISION_MODEL = "MiniMax-M3";
 const IMAGE_BYTE_LIMIT = 10 * 1024 * 1024;
-const VISION_TIMEOUT_MS = 45_000;
-const VISION_REASONING_TIMEOUT_MS = 180_000;
+const VISION_TIMEOUT_MS = 180_000;
 const VISION_MIMES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 const OCR_PROMPT =
   "Extract all text visible in this image verbatim. Preserve structure, line breaks, and original order. Reply with the extracted text only.";
 const OCR_EMPTY = "could not find any text in that photo.";
-
-export type VisionDetail = "low" | "default" | "high";
-
-export type UnderstandImageOptions = {
-  mime?: string;
-  detail?: VisionDetail;
-  thinking?: "disabled" | "adaptive";
-  temperature?: number;
-  emptyMessage?: string;
-  timeoutMs?: number;
-};
+const IMAGE_EMPTY = "could not read that image.";
 const GROQ_STT = "https://api.groq.com/openai/v1/audio/transcriptions";
 
 export function minimaxKey(): string {
@@ -59,101 +48,8 @@ export async function transcribeVoice(bytes: Buffer, filename = "voice.ogg"): Pr
   return String(payload.text ?? "").trim();
 }
 
-export async function understandImage(
-  bytes: Buffer,
-  prompt: string,
-  options: UnderstandImageOptions = {},
-): Promise<string> {
-  const key = minimaxKey();
-  if (!key) {
-    throw new Error("MINIMAX_API_KEY missing");
-  }
-  const mime = options.mime ?? "image/jpeg";
-  if (!VISION_MIMES.has(mime)) {
-    throw new Error("unsupported image type.");
-  }
-  if (bytes.length > IMAGE_BYTE_LIMIT) {
-    throw new Error("image is larger than 10 MB.");
-  }
-  const detail = options.detail ?? "default";
-  const thinking = options.thinking ?? "adaptive";
-  const body: Record<string, unknown> = {
-    model: MINIMAX_VISION_MODEL,
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: prompt },
-          {
-            type: "image_url",
-            image_url: { url: `data:${mime};base64,${bytes.toString("base64")}`, detail },
-          },
-        ],
-      },
-    ],
-  };
-  if (thinking === "disabled") {
-    body.thinking = { type: "disabled" };
-    if (options.temperature !== undefined) {
-      body.temperature = options.temperature;
-    }
-  } else {
-    body.thinking = { type: "adaptive" };
-    body.reasoning_split = true;
-  }
-  const timeoutMs = options.timeoutMs ?? (thinking === "disabled" ? VISION_TIMEOUT_MS : VISION_REASONING_TIMEOUT_MS);
-  let response: Response;
-  try {
-    response = await fetch(MINIMAX_CHAT, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${key}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-  } catch (error) {
-    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
-      throw new Error("image read timed out.");
-    }
-    throw error;
-  }
-  if (!response.ok) {
-    throw new Error(`vision failed HTTP ${response.status}`);
-  }
-  const payload = (await response.json()) as {
-    choices?: { message?: { content?: string; reasoning_content?: string } }[];
-  };
-  const message = payload.choices?.[0]?.message;
-  const raw = message?.content?.trim() ?? "";
-  const text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
-  if (!text) {
-    throw new Error(options.emptyMessage ?? "could not read that image.");
-  }
-  return text;
-}
-
-export function captionImage(bytes: Buffer, prompt: string, mime: string): Promise<string> {
-  return understandImage(bytes, prompt, {
-    mime,
-    detail: "default",
-    thinking: "disabled",
-  });
-}
-
-export async function ocrImage(bytes: Buffer, mime = "image/jpeg"): Promise<string> {
-  return understandImage(bytes, OCR_PROMPT, {
-    mime,
-    detail: "high",
-    thinking: "disabled",
-    temperature: 0,
-    emptyMessage: OCR_EMPTY,
-  });
-}
-
-/** OCR via Haiku 5.5 on the Claude subscription login (no tools, no session); MiniMax `ocrImage` stays for the prose intercept. */
-export async function ocrImageHaiku(bytes: Buffer, mime = "image/jpeg"): Promise<string> {
+/** Reads an image with Haiku 5.5 on the Claude subscription login (no tools, no session). */
+async function understandImage(bytes: Buffer, prompt: string, mime: string, emptyMessage: string): Promise<string> {
   if (!VISION_MIMES.has(mime)) {
     throw new Error("unsupported image type.");
   }
@@ -168,7 +64,7 @@ export async function ocrImageHaiku(bytes: Buffer, mime = "image/jpeg"): Promise
       role: "user",
       content: [
         { type: "image", source: { type: "base64", media_type, data: bytes.toString("base64") } },
-        { type: "text", text: OCR_PROMPT },
+        { type: "text", text: prompt },
       ],
     },
   };
@@ -176,7 +72,7 @@ export async function ocrImageHaiku(bytes: Buffer, mime = "image/jpeg"): Promise
     yield message;
   }
   const abortController = new AbortController();
-  const timer = setTimeout(() => abortController.abort(), VISION_REASONING_TIMEOUT_MS);
+  const timer = setTimeout(() => abortController.abort(), VISION_TIMEOUT_MS);
   const run = query({
     prompt: input(),
     options: {
@@ -203,9 +99,17 @@ export async function ocrImageHaiku(bytes: Buffer, mime = "image/jpeg"): Promise
     clearTimeout(timer);
   }
   if (!text) {
-    throw new Error(OCR_EMPTY);
+    throw new Error(emptyMessage);
   }
   return text;
+}
+
+export function captionImage(bytes: Buffer, prompt: string, mime: string): Promise<string> {
+  return understandImage(bytes, prompt, mime, IMAGE_EMPTY);
+}
+
+export function ocrImage(bytes: Buffer, mime = "image/jpeg"): Promise<string> {
+  return understandImage(bytes, OCR_PROMPT, mime, OCR_EMPTY);
 }
 
 export async function understandVideo(

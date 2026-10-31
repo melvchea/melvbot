@@ -8,7 +8,7 @@ A voice message is transcribed with Groq `whisper-large-v3-turbo` (`GROQ_API_KEY
 
 ## Photos
 
-Send a photo, then ask for its text (OCR) or ask about it. Photos are read with MiniMax-M3 (`MINIMAX_API_KEY`), up to 10 MB (JPEG, PNG, GIF, WebP). Captions are answered without thinking. MiniMax-M3.1-Flash was tested on 2026-10-25 and rejected: it always thinks (`thinking: disabled` returns a 400), so OCR used 22–30× more output tokens and was 2× slower, and it misread `SGD` as `SGO`.
+Send a photo, then ask for its text (OCR) or ask about it. Photos are read with Haiku 5.5 on the Claude subscription login (counts against the shared quota), up to 10 MB (JPEG, PNG, GIF, WebP). Videos are still read with MiniMax-M3.
 
 ## Text files
 

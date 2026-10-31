@@ -15,7 +15,7 @@ import { sendEphemeral } from "./telegram/ephemeral.js";
 import { attachedImageMime, dispatchImageCaption, isImageActionRequest, readImageForTurn } from "./telegram/image_caption.js";
 import { attachedVideo, dispatchVideoCaption } from "./telegram/video_caption.js";
 import { handleProseCallback } from "./telegram/prose_callback_handler.js";
-import { captionImage, generateVideo, ocrImage, ocrImageHaiku, transcribeVoice, understandVideo } from "./media/services.js";
+import { captionImage, generateVideo, ocrImage, transcribeVoice, understandVideo } from "./media/services.js";
 import { synthesizeGoogleVoice } from "./media/tts_google.js";
 import { shouldSendVoice, synthesizeMinimaxVoice } from "./media/tts.js";
 import { loadTtsSettings } from "./session/settings.js";
@@ -319,7 +319,7 @@ async function handleCommand(
       const mime = rememberedImageMime(chatId) ?? undefined; // read before the download forgets the photo
       const photo = await downloadRememberedPhoto(api, chatId);
       if (photo) {
-        const extracted = await ocrImageHaiku(photo, mime);
+        const extracted = await ocrImage(photo, mime);
         const parsed = parseTextItems(extracted);
         if (parsed.length) {
           replaceItems(data, parsed);

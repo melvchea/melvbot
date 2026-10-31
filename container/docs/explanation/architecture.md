@@ -69,6 +69,6 @@ Live TypeScript tree under `ts/src`. `index.ts` dispatches the CLI (`doctor`, `s
 | Sheets | `sheet/*` | Spend, EV, rules |
 | Google / Outlook | `google/*`, `outlook/*` | Calendar, Tasks, token handling, mail digest |
 | Reminders | `reminders/*`, `nudges/*` | Ticker, formatter, proactive nudges |
-| Media | `media/*` | Groq STT, MiniMax vision and images, Google/MiniMax TTS |
+| Media | `media/*` | Groq STT, Haiku image reading, MiniMax video, Google/MiniMax TTS |
 | Cron | `cron/*` | Job store, `run-once`, morning update (rendered in code from the Google prefetch, no LLM), DCA jobs (data prefetched in code, one tool-free Claude write-up) |
 | Health | `doctor.ts`, `session/turn_lock.ts` | Checks and the turn lock |
