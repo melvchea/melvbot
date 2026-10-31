@@ -7,7 +7,6 @@
       "Bash(docker exec melvbot *)",
       "Bash(docker compose:*)",
       "Bash(docker restart:*)",
-      "Agent(general-purpose)",
       "Bash(git pull:*)",
       "Bash(git fetch:*)"
     ],
@@ -67,6 +66,7 @@
       "Bash(docker stop:*)",
       "Bash(docker rm:*)",
       "Bash(sudo:*)",
+      "Agent(general-purpose)",
       "Edit(CLAUDE.md)",
       "Edit(.claude/**)",
       "Edit(host/assistant/prompts/**)"
@@ -82,6 +82,27 @@
     }
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/melvbot-storage/host/libexec/agent-gate"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/melvbot-storage/host/libexec/subagent-cap"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Bash",

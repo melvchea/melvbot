@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# PreToolUse hook (Agent): deny any launch that is not general-purpose + model haiku + effort medium; otherwise force an ask so the spec-and-yes gate cannot be skipped.
+in=$(cat)
+type=$(jq -r '.tool_input.subagent_type // "general-purpose"' <<<"$in")
+model=$(jq -r '.tool_input.model // ""' <<<"$in")
+effort=$(jq -r '.tool_input.effort // ""' <<<"$in")
+decide() { jq -n --arg d "$1" --arg r "$2" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: $d, permissionDecisionReason: $r}}'; exit 0; }
+[[ $type == general-purpose ]] || decide deny "Agent must be general-purpose (never fork or named agents), got '$type'."
+[[ $model == haiku ]] || decide deny "Agent must use model: haiku, got '${model:-unset}'."
+[[ $effort == medium ]] || decide deny "Agent must use effort: medium, got '${effort:-unset}'."
+decide ask "Delegate only if it saves cost per completed outcome; spec posted and approved, one small task (est. under ~40K tokens)?"

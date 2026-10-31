@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# SubagentStop hook: warn when the finished sub-agent used more than 99,999 tokens (input + cache + output); silent otherwise. Cannot stop a run midway.
+in=$(cat)
+f=$(jq -r '.agent_transcript_path // ""' <<<"$in")
+[[ -f $f ]] || exit 0
+n=$(jq -s '[.[].message.usage? // empty | (.input_tokens + .cache_creation_input_tokens + .cache_read_input_tokens + .output_tokens)] | add // 0' "$f")
+(( n > 99999 )) || exit 0
+jq -n --arg m "Sub-agent used $n tokens (cap 99,999): split the task into smaller agents." '{systemMessage: $m}'
