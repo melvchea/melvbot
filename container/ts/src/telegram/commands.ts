@@ -62,8 +62,12 @@ export function parseCommaCommand(text: string): ParsedCommand {
   if (isNewCommand) {
     // Parse args: everything after comma, trimmed, including any following lines
     let args = afterComma.trimStart();
-    if (found.index + 1 < found.lines.length) {
-      const tail = found.lines.slice(found.index + 1).join("\n");
+    const tail = found.index + 1 < found.lines.length ? found.lines.slice(found.index + 1).join("\n") : "";
+    // "`, list`" (typo with a space) means ",list"; only the bare word, so ", list the pros" stays a new prompt.
+    if (args.trim().toLowerCase() === "list") {
+      return { command: "list", args: tail };
+    }
+    if (tail) {
       args = args ? `${args}\n${tail}` : tail;
     }
     return { command: "new", args };
