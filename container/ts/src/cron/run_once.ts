@@ -11,10 +11,10 @@ import { runBackup } from "./backup.js";
 import { titleLine } from "../telegram/title_line.js";
 import { runTurn } from "../assistant/turn.js";
 import { loadAssistantToml } from "../assistant/toml.js";
-import { googleTokenPath, tasksDueOrOverdue, type DueTask } from "../google/http.js";
+import { googleTokenPath, tasksCreate, tasksSearch, tasksDueOrOverdue, type DueTask } from "../google/http.js";
 import { listMergedAgenda } from "../reminders/agenda.js";
 import { taskButtonRows } from "../reminders/callbacks.js";
-import { dueTaskLines, formatEventLines } from "../reminders/format.js";
+import { dueTaskLines, formatEventLines, sgtToday } from "../reminders/format.js";
 import { prefetchNewsData, type Headline } from "./news.js";
 import { extractReceiptCandidates, formatDigestMessage, type GraphMessage, type SentMessage } from "../outlook/digest_format.js";
 import { listInboxMessages, listReplyContext } from "../outlook/graph.js";
@@ -77,6 +77,26 @@ export async function notifyReminderText(
     await io.withButtons(`${text}\n\n${monthlyReview.text}`, nudgeButtonsKeyboard(monthlyReview.buttons));
   } else {
     await io.plain(text);
+  }
+}
+
+/** Each bullet of a code-rendered reminder becomes a Task due today (skipped if already open), so the 19:15 sweep re-alerts it. Never blocks the Telegram post. */
+export async function createReminderTasks(
+  text: string,
+  now = new Date(),
+  io = { search: tasksSearch, create: tasksCreate },
+): Promise<void> {
+  const due = sgtToday(now);
+  for (const line of text.split("\n").filter((l) => l.startsWith("•"))) {
+    const title = line.slice(1).trim();
+    try {
+      const open = await io.search(title);
+      if (!open.some((t) => t.title === title && t.due.startsWith(due))) {
+        await io.create({ title, due });
+      }
+    } catch (error) {
+      console.error(`reminder task failed: ${title}`, error);
+    }
   }
 }
 
@@ -596,6 +616,7 @@ async function executeJob(job: CronJob): Promise<string> {
     // Fixed list in the job prompt: rendered in code, no Claude call.
     const text = renderWeeklyReminder(job.prompt, new Date());
     await telegramNotify(text);
+    await createReminderTasks(text);
     return text;
   }
   if (isMonthlyFromWeeklyPrompt(job.prompt)) {
@@ -605,6 +626,7 @@ async function executeJob(job: CronJob): Promise<string> {
       return SILENT_OUTPUT;
     }
     await notifyReminderText(job, text);
+    await createReminderTasks(text);
     return text;
   }
   if (isMonthlyReminderPrompt(job.prompt)) {
@@ -613,6 +635,7 @@ async function executeJob(job: CronJob): Promise<string> {
       return SILENT_OUTPUT;
     }
     await notifyReminderText(job, text);
+    await createReminderTasks(text);
     return text;
   }
   let prompt = job.prompt;

@@ -3,7 +3,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";im
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 
-import { runCronOnce } from "../src/cron/run_once.js";
+import { createReminderTasks, runCronOnce } from "../src/cron/run_once.js";
 import { latestSlotToday, slotKey, todaysSlots } from "../src/cron/due.js";
 import { BACKUP_KEEP, backupRestoreReport, runBackup } from "../src/cron/backup.js";
 import { googleHome } from "./helpers/google_home.js";
@@ -185,4 +185,17 @@ test("backup alerts when a note lost over half its bytes or a sheet lost rows ag
     stub.restore();
     restoreEnv();
   }
+});
+
+test("reminder bullets become Tasks due today unless an open one already exists", async () => {
+  const created: { title: string; due?: string }[] = [];
+  const text = "Weekly Reminder Sat 31 Oct 07:05\n\n• Book basketball\n• Charge car this evening";
+  await createReminderTasks(text, new Date("2026-10-31T07:05:00+08:00"), {
+    search: async (q) => (q === "Book basketball" ? [{ id: "1", title: q, status: "needsAction", due: "2026-10-31T00:00:00.000Z", completed: "", notes: "" }] : []),
+    create: async (task) => {
+      created.push(task);
+      return { status: "created", id: "2", title: task.title };
+    },
+  });
+  assert.deepEqual(created, [{ title: "Charge car this evening", due: "2026-10-31" }]);
 });
