@@ -22,11 +22,7 @@ CI (`.github/workflows/ci.yml`, default `permissions: {}`, `contents: read` per 
 Removed (history): `digest`, `webx`, `big-output-nudge`, `coder` and its `coder-result` hook (2026-10-25; MiniMax helpers disabled 2026-10-19), `dexplore`, `offload-guard`.
 
 ## Delegation
-Main session = Haiku 5.5 (high). No named sub-agent. Non-LLM first: `rg`, `sed -n`, `jq`, `git diff --stat`; edits ≤50 lines inline with no review (smallest unique Edit anchor, no full-file Write); plan and search inline; never `fork`.
-
-Reviews for larger changes: an ad-hoc Sonnet 5.5 high agent (`Agent` `general-purpose`, `model: sonnet`, `effort: high`) reviews the posted spec before implementation and the diff after, with only the spec or diff plus callers as input. After two rejected reviews, escalate the main session to Sonnet 5.5 high or Opus 5.5 medium.
-
-The main agent implements itself; the Haiku delegate below is only for mechanical work, heavy reading, or a main context over ~100K tokens.
+Main session = Sonnet 5.5 (medium). No named sub-agent. Non-LLM first: `rg`, `sed -n`, `jq`, `git diff --stat`; edits ≤50 lines inline (smallest unique Edit anchor, no full-file Write); plan and search inline; never `fork`.
 
 Launch an ad-hoc Haiku 5.5 medium agent (`Agent` with `subagent_type: general-purpose`, `model: haiku`, `effort: medium`) only when it saves cost per completed outcome:
 - the spec (goal, exact file:line ranges, verify command) costs far fewer tokens than the diff, i.e. mechanical or repeated patterns, or heavy file reading/summarising whose raw output would otherwise sit in Sonnet's context (multi-page web research, 3+ fetches);
@@ -52,6 +48,5 @@ Launch an ad-hoc Haiku 5.5 medium agent (`Agent` with `subagent_type: general-pu
 
 | Role | Model |
 |---|---|
-| Main session | Haiku 5.5, high |
-| Reviewer (spec before, diff after) | Sonnet 5.5, high |
+| Main session | Sonnet 5.5, medium |
 | Ad-hoc delegate | Haiku 5.5, medium |
