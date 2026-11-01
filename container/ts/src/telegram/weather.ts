@@ -209,8 +209,7 @@ export async function fetchAirTemp(): Promise<number | null> {
 }
 
 function tempText(low: number, high: number, now: number | null | undefined): string {
-  const range = `${low}°C-${high}°C`;
-  return now == null ? range : `${Math.round(now)}°C now (${range})`;
+  return now == null ? `${low}°C-${high}°C` : `${Math.round(now)}°C now`;
 }
 
 export function renderWindClause(degrees: number[] | null | undefined): string {
