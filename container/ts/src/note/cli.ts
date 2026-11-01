@@ -6,6 +6,7 @@ import {
   getNote,
   listNotes,
   replaceNoteSection,
+  pruneNoteBefore,
   replaceNoteText,
   restoreNote,
 } from "./notes.js";
@@ -14,10 +15,11 @@ import { applyNoteRename } from "./note_prose.js";
 import { recordChange } from "../memory/change_log.js";
 
 const NOTE_USAGE =
-  "usage: melvbot note add|list|get|delete|restore|describe|append-history|replace-section|replace-text|rename\n" +
+  "usage: melvbot note add|list|get|delete|restore|describe|append-history|replace-section|replace-text|prune-before|rename\n" +
   '       melvbot note rename <slug> <new title...>\n' +
   '       melvbot note replace-section <slug> "## Heading" <text> --expect-rev <rev> [--bottom]\n' +
-  '       melvbot note replace-text <slug> <old text> <new text> --expect-rev <rev>\n';
+  '       melvbot note replace-text <slug> <old text> <new text> --expect-rev <rev>\n' +
+  '       melvbot note prune-before <slug> <YYYY-MM-DD> --expect-rev <rev>\n';
 
 function flag(args: string[], name: string): string | undefined {
   const index = args.indexOf(name);
@@ -183,6 +185,14 @@ export async function runNoteCli(args: string[]): Promise<number> {
         return usage();
       }
       writeJson(await replaceNoteText(slug, oldText, newText, flag(args, "--expect-rev")));
+      return 0;
+    }
+    if (args[0] === "prune-before") {
+      const [slug, cutoff] = positionals(args.slice(1), ["--expect-rev"]);
+      if (!slug || !cutoff) {
+        return usage();
+      }
+      writeJson(await pruneNoteBefore(slug, cutoff, flag(args, "--expect-rev")));
       return 0;
     }
     if (args[0] === "append-history") {

@@ -22,6 +22,7 @@ const NOTE_VERB_TEXT: Record<string, string> = {
   "note add": "Saved note",
   "note replace-text": "Updated note",
   "note replace-section": "Updated note",
+  "note prune-before": "Updated note",
   "note append-history": "Added to note",
 };
 

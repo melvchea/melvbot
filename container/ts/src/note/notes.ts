@@ -567,6 +567,74 @@ export async function replaceNoteText(
   expectRevisionId?: string,
   options: { skipChangeLog?: boolean; chatKey?: string | null } = {},
 ): Promise<{ receipt?: WriteReceipt }> {
+  return rewriteNoteBody(slug, (body) => replaceTextInBody(body, oldText, newText), "note replace-text", expectRevisionId, options);
+}
+
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const ITEM_DATE = /^\s*(?:#{1,6}\s+|[-*•]\s+)?(?:\w{3},?\s+)?(\d{1,2})\s+([A-Za-z]{3})[a-z]*\.?(?:,?\s+(\d{4}))?/;
+
+/**
+ * Drops dated items older than `cutoff` (YYYY-MM-DD). An item starts at a line that opens with
+ * `D Mon` or `D Mon YYYY` (optionally after a heading or bullet marker) and runs to the next such
+ * line or heading; undated text and items on or after the cutoff stay. A year-less date takes the cutoff's year.
+ */
+export function pruneBodyBefore(body: string, cutoff: string): { body: string; removed: number } {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(cutoff);
+  if (match === null) {
+    throw new Error("cutoff must be YYYY-MM-DD");
+  }
+  const cutoffKey = Number(match[1]) * 10_000 + Number(match[2]) * 100 + Number(match[3]);
+  const kept: string[] = [];
+  let removed = 0;
+  let dropping = false;
+  for (const line of body.split("\n")) {
+    const found = ITEM_DATE.exec(line);
+    const month = found === null ? -1 : MONTHS.indexOf(found[2].toLowerCase());
+    if (found !== null && month >= 0) {
+      const key = Number(found[3] ?? match[1]) * 10_000 + (month + 1) * 100 + Number(found[1]);
+      dropping = key < cutoffKey;
+      if (dropping) {
+        removed += 1;
+      }
+    } else if (/^#{1,6}\s/.test(line)) {
+      dropping = false;
+    }
+    if (!dropping) {
+      kept.push(line);
+    }
+  }
+  return { body: kept.join("\n"), removed };
+}
+
+/** Removes dated items older than `cutoff` from a Note (see `pruneBodyBefore`); throws when nothing matches. */
+export async function pruneNoteBefore(
+  slug: string,
+  cutoff: string,
+  expectRevisionId?: string,
+  options: { skipChangeLog?: boolean; chatKey?: string | null } = {},
+): Promise<{ receipt?: WriteReceipt }> {
+  return rewriteNoteBody(
+    slug,
+    (body) => {
+      const pruned = pruneBodyBefore(body, cutoff);
+      if (pruned.removed === 0) {
+        throw new Error(`no dated items before ${cutoff} found in note body`);
+      }
+      return pruned.body;
+    },
+    "note prune-before",
+    expectRevisionId,
+    options,
+  );
+}
+
+async function rewriteNoteBody(
+  slug: string,
+  transform: (body: string) => string,
+  action: "note replace-text" | "note prune-before",
+  expectRevisionId: string | undefined,
+  options: { skipChangeLog?: boolean; chatKey?: string | null },
+): Promise<{ receipt?: WriteReceipt }> {
   const cleaned = validateSlug(slug);
   const docId = loadNotesToml()[cleaned];
   if (!docId) {
@@ -578,10 +646,10 @@ export async function replaceNoteText(
   }
   if (expectRevisionId === undefined) {
     throw new Error(
-      `note ${cleaned}: re-read the note (note get) and retry with --expect-rev before replace-text`,
+      `note ${cleaned}: re-read the note (note get) and retry with --expect-rev before ${action.slice(5)}`,
     );
   }
-  const body = replaceTextInBody(existing.body, oldText, newText);
+  const body = transform(existing.body);
   validateProcedureNoteBody(cleaned, body, existing.body);
   assertHouseRulesSize(cleaned, body, existing.body);
   const beforeSnapshot: NoteSnapshot = {
@@ -621,13 +689,13 @@ export async function replaceNoteText(
       url: googleDocEditUrl(docId),
     };
     const changeId = recordChange({
-      action: "note replace-text",
+      action,
       target: cleaned,
       before: beforeSnapshot,
       after: noteSnapshot(afterNote),
       chatKey: options.chatKey ?? null,
     });
-    receipt = buildBodyDiffReceipt("note replace-text", cleaned, existing.body, body, changeId, {
+    receipt = buildBodyDiffReceipt(action, cleaned, existing.body, body, changeId, {
       url: afterNote.url,
       updatedAt: now,
       revisionId: persisted.revision_id,

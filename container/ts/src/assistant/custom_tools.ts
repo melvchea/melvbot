@@ -16,6 +16,7 @@ import {
   getNote,
   listNotes,
   replaceSectionInBody,
+  pruneBodyBefore,
   replaceTextInBody,
 } from "../note/notes.js";
 import { parseSheetCreateArgs, sheetCreateSummary } from "../sheet/create.js";
@@ -150,7 +151,7 @@ async function runMelvbotCli(args: ToolArgs, state: McpTurnState): Promise<ToolR
 }
 
 /** Note writes the agent may stage (`stage: true`) so the user can reply yes instead of the agent asking in prose. */
-const STAGEABLE_NOTE_WRITES = new Set(["note add", "note replace-section", "note replace-text", "note append-history"]);
+const STAGEABLE_NOTE_WRITES = new Set(["note add", "note replace-section", "note replace-text", "note prune-before", "note append-history"]);
 
 const clipStaged = (s: string): string => {
   const text = s.replace(/\s+/g, " ").trim();
@@ -254,12 +255,15 @@ export async function runMelvbotCliInner(args: ToolArgs, state: McpTurnState): P
       return result.stdout.trim();
     });
   }
-  if (action === "note replace-text" && argv[2] && argv[3] && argv[4] !== undefined) {
+  if ((action === "note replace-text" && argv[2] && argv[3] && argv[4] !== undefined) || (action === "note prune-before" && argv[2] && argv[3])) {
     const [, , slug, oldText, newText] = argv;
     return guarded(async () => {
       assertConfirmableInSource(action, state.source === "telegram" ? "telegram" : "cron");
       const oldBody = (await getNote(slug)).body;
-      const newBody = replaceTextInBody(oldBody, oldText, newText);
+      const newBody = action === "note prune-before" ? pruneBodyBefore(oldBody, oldText).body : replaceTextInBody(oldBody, oldText, newText);
+      if (action === "note prune-before" && newBody === oldBody) {
+        throw new Error(`no dated items before ${oldText} found in note body`);
+      }
       if (noteAddRequiresConfirm(slug, oldBody, newBody)) {
         state.pendingConfirmation = createConfirmation(
           state.chatKey ?? "cron",
@@ -493,7 +497,9 @@ const MELVBOT_CLI_DESCRIPTION =
       '["note", "replace-section", "<slug>", "## Heading", "<section text>", "--expect-rev", "<revision_id>"] ' +
       "(add --bottom to append a missing section at the end instead of the top). To change a few lines of an EXISTING Note use " +
       '["note", "replace-text", "<slug>", "<exact old text from note get>", "<new text>", "--expect-rev", "<revision_id>"] ' +
-      "(old text must occur once); never re-send the whole body with note add for a small edit. Reference prices may sit in the body; payments go to sheet spend add. Spend batches: one call takes several rows, ['sheet', 'spend', 'add', '--owner', O, '--card', C, d1, m1, a1, d2, m2, a2], and amend+add is one call with '--void', '<id>' (repeatable, Confirm tap) before the rows; 'sheet spend void' also takes several ids. For a new free-form Sheet (optionally linked from a Note) use ['sheet', 'create', '<title>', '--note', '<slug>', '--tab', '<name>:<col1>,<col2>'] (--tab repeatable). For one dated line under ## History, use " +
+      "(old text must occur once); to drop every dated item (a D Mon line or heading) older than a date use " +
+      '["note", "prune-before", "<slug>", "<YYYY-MM-DD>", "--expect-rev", "<revision_id>"] ' +
+      "(it reads the whole Note itself, so you need not see it all); never re-send the whole body with note add for a small edit. Reference prices may sit in the body; payments go to sheet spend add. Spend batches: one call takes several rows, ['sheet', 'spend', 'add', '--owner', O, '--card', C, d1, m1, a1, d2, m2, a2], and amend+add is one call with '--void', '<id>' (repeatable, Confirm tap) before the rows; 'sheet spend void' also takes several ids. For a new free-form Sheet (optionally linked from a Note) use ['sheet', 'create', '<title>', '--note', '<slug>', '--tab', '<name>:<col1>,<col2>'] (--tab repeatable). For one dated line under ## History, use " +
       '["note", "append-history", "<slug>", "<text>", "--expect-rev", "<revision_id>"] instead of replacing the body. ' +
       "On an existing Note, pass --expect-rev from note get's revision_id on note add, describe, and append-history. " +
       'To only add a tag use ["note", "describe", "<slug>", "--add-tag", "<tag>", "--expect-rev", "<revision_id>"] (use_when stays unchanged). ' +

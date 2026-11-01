@@ -15,6 +15,7 @@ export const WRITE_ACTION_KEYWORDS: Readonly<Record<string, readonly string[]>> 
   "sheet create": ["sheet", "spreadsheet", "create", "new", "make"],
   "note add": ["remember", "note", "save", "write down", "record", "update"],
   "note replace-text": ["remember", "note", "save", "write down", "record", "update", "edit", "change"],
+  "note prune-before": ["remove", "delete", "prune", "clean", "older", "update", "edit", "change"],
   "note replace-section": ["remember", "note", "save", "write down", "record", "update", "edit", "change"],
   offer_save: ["save", "remember", "keep", "go with", "settle", "decide", "pick"],
   "note rename": ["rename", "title", "call it", "name"],

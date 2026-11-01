@@ -7,6 +7,7 @@ import {
   appendNoteHistory,
   assertHouseRulesSize,
   overwriteGuardError,
+  pruneBodyBefore,
   replaceNoteSection,
   resolveDescribeUseWhen,
 } from "../src/note/notes.js";
@@ -60,4 +61,23 @@ test("note delete trashes the Doc via PATCH trashed, never a permanent Drive DEL
     stub.restore();
     restoreEnv();
   }
+});
+
+test("pruneBodyBefore drops dated items older than the cutoff and keeps undated text, headings and newer items", () => {
+  const body = [
+    "Plan intro",
+    "## 3 Sep 2026",
+    "old detail",
+    "- 3 Oct: topped up",
+    "## CURRENT STATUS",
+    "undated status",
+    "30 Oct 2026 renewed",
+    "kept detail",
+    "5 Nov: next",
+  ].join("\n");
+  const pruned = pruneBodyBefore(body, "2026-10-30");
+  assert.equal(pruned.removed, 2);
+  assert.equal(pruned.body, ["Plan intro", "## CURRENT STATUS", "undated status", "30 Oct 2026 renewed", "kept detail", "5 Nov: next"].join("\n"));
+  assert.equal(pruneBodyBefore("no dates here", "2026-10-30").removed, 0);
+  assert.throws(() => pruneBodyBefore(body, "30 Oct"), /YYYY-MM-DD/);
 });
