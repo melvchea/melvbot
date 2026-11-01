@@ -52,6 +52,13 @@ test("4-hour window takes hours 2-4 rain from the hourly outlook", () => {
   assert.match(bullet(3, 80, 30), /\(no rain\)/);
 });
 
+test("live air temperature leads the 24h range and is omitted when unavailable", () => {
+  const forecast = { general: { temperature: { low: 25, high: 35 } } };
+  const now = new Date("2026-11-01T06:00:00Z");
+  assert.match(renderWeatherBullet(forecast, null, now, 2, null, 30.6), /, 31°C now \(25°C-35°C\)$/);
+  assert.match(renderWeatherBullet(forecast, null, now, 2, null, null), /, 25°C-35°C$/);
+});
+
 test("wind clause uses circular mean so 350° and 10° average to N", () => {
   assert.equal(renderWindClause([350, 10, 0]), ", Wind N");
   assert.equal(renderWindClause([100, 106, 139]), ", Wind SE");

@@ -4,6 +4,7 @@ const FORECAST_2H =
   "https://api.data.gov.sg/v1/environment/2-hour-weather-forecast";
 const PM25_URL = "https://api-open.data.gov.sg/v2/real-time/api/pm25";
 const WIND_URL = "https://api-open.data.gov.sg/v2/real-time/api/wind-direction";
+const TEMP_URL = "https://api-open.data.gov.sg/v2/real-time/api/air-temperature";
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const OUTLOOK_URL =
   "https://api.open-meteo.com/v1/forecast?latitude=1.3521&longitude=103.8198" +
@@ -188,6 +189,28 @@ export async function fetchWindDegrees(): Promise<number[]> {
   };
   const rows = payload.data?.readings?.[0]?.data ?? [];
   return rows.map((row) => row.value).filter((value): value is number => typeof value === "number");
+}
+
+export async function fetchAirTemp(): Promise<number | null> {
+  const response = await fetch(TEMP_URL, {
+    headers: { "user-agent": USER_AGENT },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    throw new Error(`NEA temperature fetch failed: ${TEMP_URL}`);
+  }
+  const payload = (await response.json()) as {
+    data?: { readings?: { data?: { value?: unknown }[] }[] };
+  };
+  const values = (payload.data?.readings?.[0]?.data ?? [])
+    .map((row) => row.value)
+    .filter((value): value is number => typeof value === "number");
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+}
+
+function tempText(low: number, high: number, now: number | null | undefined): string {
+  const range = `${low}°C-${high}°C`;
+  return now == null ? range : `${Math.round(now)}°C now (${range})`;
 }
 
 export function renderWindClause(degrees: number[] | null | undefined): string {
@@ -525,6 +548,7 @@ export function renderWeatherBullet(
   now: Date,
   aheadHours = NOWCAST_HOURS,
   outlook?: HourlyOutlook | null,
+  airTemp?: number | null,
 ): string {
   const general = (forecast.general as {
     temperature?: { high?: number; low?: number };
@@ -532,19 +556,20 @@ export function renderWeatherBullet(
   const high = intField(general.temperature?.high, 0);
   const low = intField(general.temperature?.low, 0);
   const window = hourWindow(aheadHours);
+  const temp = tempText(low, high, airTemp);
   const towns = nowcastRainTowns(nowcast, now);
   if (towns.length) {
     const conditions = pickConditions(towns.map(([, text]) => text));
     const areas = areaClause([], towns.map(([area]) => area));
     const chance = rainChance(conditions, {}, towns);
-    return `${conditions} in ${window} (${chance}% chance)${areas}, ${low}°C-${high}°C`;
+    return `${conditions} in ${window} (${chance}% chance)${areas}, ${temp}`;
   }
   const later = aheadHours > NOWCAST_HOURS ? outlookRain(outlook, now) : null;
   if (later) {
-    return `${later.conditions} in ${window} (${later.chance}% chance), ${low}°C-${high}°C`;
+    return `${later.conditions} in ${window} (${later.chance}% chance), ${temp}`;
   }
   const conditions = dryConditions(forecast, nowcastCoversNow(nowcast, now) ? nowcast : null);
-  return `${conditions} in ${window} (no rain), ${low}°C-${high}°C`;
+  return `${conditions} in ${window} (no rain), ${temp}`;
 }
 
 function formatCronWeatherDate(now: Date): string {
@@ -574,6 +599,7 @@ export async function formatWeatherMessage(
     pm25?: Record<string, unknown> | null;
     wind?: number[] | null;
     outlook?: HourlyOutlook | null;
+    airTemp?: number | null;
     cronLayout?: boolean;
   } = {},
 ): Promise<string> {
@@ -598,6 +624,14 @@ export async function formatWeatherMessage(
       wind = null;
     }
   }
+  let airTemp = options.airTemp;
+  if (airTemp === undefined && live) {
+    try {
+      airTemp = await fetchAirTemp();
+    } catch {
+      airTemp = null;
+    }
+  }
   const raining = nowcastHasRain(nowcast, now);
   const band = pm25BandFromItem(pm25);
   let aheadHours = windowHours(raining, band);
@@ -612,7 +646,7 @@ export async function formatWeatherMessage(
   if (!outlook) {
     aheadHours = NOWCAST_HOURS;
   }
-  const bullet = renderWeatherBullet(forecast, nowcast, now, aheadHours, outlook);
+  const bullet = renderWeatherBullet(forecast, nowcast, now, aheadHours, outlook, airTemp);
   const clause = renderWindClause(wind) + renderPm25Clause(pm25);
 
   const parts = sgtParts(now);
