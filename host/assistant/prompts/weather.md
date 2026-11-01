@@ -13,4 +13,4 @@ Schedule: morning and afternoon NEA still go out on the morning update and after
 - No rain and Normal PM2.5: the message covers the next 4 hours. Rain, a chance of rain, or PM2.5 worse than Normal: the next 2 hours.
 - A new weather Telegram message deletes the previous weather message in that chat. Replying to an older weather message deletes that message.
 
-Bullet: `• [conditions] in the {morning|afternoon} (XX% chance) over [areas], XX°C now, PSI …`. When dry, drop `over [areas]` and the chance. Keep the `•`. Humidity is not rain chance.
+Bullet: `• [conditions] in the {morning|afternoon} (XX% chance) over [areas], XX°C, PSI …`. When dry, drop `over [areas]` and the chance. Keep the `•`. Humidity is not rain chance.
