@@ -6,7 +6,7 @@ import { tempDbPath } from "../helpers/temp.js";
 process.env.MELVBOT_ASSISTANT_CONVERSATION_DB = tempDbPath();
 
 import { actionRequiresConfirm } from "../../src/assistant/confirm.js";
-import { cliAction, newMcpTurnState, runMelvbotCliInner, webBlocked } from "../../src/assistant/custom_tools.js";
+import { cliAction, newMcpTurnState, runMelvbotCliInner, stageShrinkError, webBlocked } from "../../src/assistant/custom_tools.js";
 import { isGuardedWriteAction } from "../../src/assistant/write_guard.js";
 
 test("google and sheet writes use the full verb for confirm and the injection guard", () => {
@@ -48,6 +48,15 @@ test("an offered note write (stage: true) leaves a pending confirmation that a b
   const code = latestPendingConfirmationCode("telegram:77");
   assert.equal(code, state.pendingConfirmation?.code);
   assert.deepEqual((consumeConfirmation(code ?? "") as { payload: unknown } | null)?.payload, { args: argv });
+});
+
+test("staging a write the size guard would block returns guidance; --allow-shrink or a small edit passes", () => {
+  const old = `## Plan\nkeep\n\n## History\n${"- line\n".repeat(300)}`;
+  const section = ["note", "replace-section", "dca", "## History", "- one", "--expect-rev", "r1"];
+  assert.match(stageShrinkError("note replace-section", section, old) ?? "", /--allow-shrink/);
+  assert.equal(stageShrinkError("note replace-section", [...section, "--allow-shrink"], old), null);
+  assert.equal(stageShrinkError("note replace-section", ["note", "replace-section", "dca", "## Plan", "new", "--expect-rev", "r1"], old), null);
+  assert.equal(stageShrinkError("note add", ["note", "add", "house-rules", "--body", "x"], old), null);
 });
 
 test("note add --allow-shrink is refused unstaged and stages a Confirm when staged", async () => {

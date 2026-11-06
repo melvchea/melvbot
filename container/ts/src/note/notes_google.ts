@@ -22,7 +22,7 @@ const DESTRUCTIVE_RETAINED_DENOMINATOR = 2;
 const PROTECTED_NOTE_SLUGS = new Set(["about-me", "house-rules"]);
 const RULES_HEADING = "## Rules";
 
-function isDestructiveShrink(beforeChars: number, newChars: number, protectedNote = false): boolean {
+export function isDestructiveShrink(beforeChars: number, newChars: number, protectedNote = false): boolean {
   const shrinkChars = beforeChars - newChars;
   const charCap = protectedNote ? 200 : DESTRUCTIVE_SHRINK_CHARS;
   if (shrinkChars <= charCap) {

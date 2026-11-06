@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import {
   actionRequiresConfirm,
+  ALWAYS_CONFIRM_NOTE_SLUGS,
   assertConfirmableInSource,
   buildNoteAddConfirmationSummary,
   createConfirmation,
@@ -18,6 +19,7 @@ import {
   pruneBodyBefore,
   replaceTextInBody,
 } from "../note/notes.js";
+import { isDestructiveShrink } from "../note/notes_google.js";
 import { parseSheetCreateArgs, sheetCreateSummary } from "../sheet/create.js";
 import { previewEvAdd, previewSpendAdd } from "./soft_confirm.js";
 import { loadNudgesToml } from "../nudges/toml.js";
@@ -157,6 +159,30 @@ const clipStaged = (s: string): string => {
   return text.length > 300 ? `${text.slice(0, 300)}…` : text;
 };
 
+/**
+ * Stage-time size check: a Confirm that the size guard would refuse on tap is never posted. Returns the error
+ * the model should act on (restage with --allow-shrink only if the user asked to delete that content), else null.
+ */
+export function stageShrinkError(action: string, argv: readonly string[], oldBody: string): string | null {
+  const slug = argv[2] ?? "";
+  if (argv.includes("--allow-shrink") || ALWAYS_CONFIRM_NOTE_SLUGS.has(slug)) {
+    return null;
+  }
+  let newBody: string | null = null;
+  if (action === "note add") {
+    newBody = noteAddSlugAndBody(argv)?.body ?? null;
+  } else if (action === "note replace-section" && argv[3] && argv[4] !== undefined) {
+    newBody = replaceSectionInBody(oldBody, argv[3], argv[4], argv.includes("--bottom") ? "bottom" : "top");
+  }
+  if (newBody === null || !isDestructiveShrink(oldBody.length, newBody.length)) {
+    return null;
+  }
+  return (
+    `refusing to stage: this would delete most of note ${slug} (${oldBody.length} → ${newBody.length} chars) and the size guard would block it. ` +
+    "If the user asked to delete that content, stage again with --allow-shrink (stage: true); otherwise keep the old content and use a smaller edit."
+  );
+}
+
 /** Plain-language Confirm text for a staged Note write (no raw CLI argv). */
 export function stagedNoteSummary(action: string, argv: string[]): string {
   const slug = argv[2] ?? "";
@@ -191,6 +217,12 @@ export async function runMelvbotCliInner(args: ToolArgs, state: McpTurnState): P
   if (args.stage === true && action && STAGEABLE_NOTE_WRITES.has(action)) {
     return guarded(async () => {
       assertConfirmableInSource(action, state.source === "telegram" ? "telegram" : "cron");
+      if ((action === "note add" || action === "note replace-section") && argv[2]) {
+        const shrinkError = stageShrinkError(action, argv, await getNote(argv[2]).then((note) => note.body, () => ""));
+        if (shrinkError) {
+          throw new Error(shrinkError);
+        }
+      }
       state.pendingConfirmation = createConfirmation(state.chatKey ?? "cron", action, { args: argv }, stagedNoteSummary(action, argv));
       return "this action needs confirmation";
     });
