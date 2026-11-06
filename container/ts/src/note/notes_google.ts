@@ -448,6 +448,10 @@ export async function upsertNoteDocument(
   record: { title: string; tags: string[]; body: string; created_at: string; updated_at: string; use_when?: string },
   options: { expectRevisionId?: string; allowShrink?: boolean } = {},
 ): Promise<{ inserted: boolean; docId: string; revision_id: string }> {
+  // Docs are created only by `note add`, which pins the slug first and trashes the Doc again on failure.
+  if (docId === undefined) {
+    throw new Error(`refusing to write note ${slug} without a registered Doc: Docs are created only by note add`);
+  }
   const text = encodeNoteDocument({
     title: record.title,
     tags: record.tags,
@@ -463,12 +467,6 @@ export async function upsertNoteDocument(
     ...(record.use_when ? { use_when: record.use_when } : {}),
     last_source_ref: currentSourceRef(),
   };
-  if (docId === undefined) {
-    const createdId = await createNoteDocument(record.title);
-    await updateDriveProps(createdId, props);
-    const revisionId = await replaceDocText(createdId, text, { slug });
-    return { inserted: true, docId: createdId, revision_id: revisionId };
-  }
   await assertDriveFileNotTrashed(docId, `note ${slug}`);
   await updateDriveProps(docId, props);
   const revisionId = await replaceDocText(docId, text, { slug, expectRevisionId: options.expectRevisionId, allowShrink: options.allowShrink });
