@@ -19,3 +19,9 @@ test("procedure notes require a Rules section; procedure notes cannot lose the R
     );
   }
 });
+
+test("the spend-line check skips the dollar-cost-averaging Note but still guards other Notes", () => {
+  const body = "## Plan\n- SPYL: bought USD 4,500 on 6 Nov\n";
+  assert.doesNotThrow(() => validateProcedureNoteBody("dollar-cost-averaging", body));
+  assert.throws(() => validateProcedureNoteBody("tv-buy", body), /looks like a spend record/);
+});

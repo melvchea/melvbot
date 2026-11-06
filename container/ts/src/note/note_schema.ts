@@ -14,6 +14,7 @@ const NOTE_MONEY_RE = /(?:(?:S\$|\$|SGD|USD)\s?\d[\d,]*(?:\.\d+)?|\d[\d,]*(?:\.\
 const NOTE_SPEND_VERB_RE =
   /\b(?:paid|spent|bought|purchased|charged|refunded|topped up|transferred|reimbursed|withdrew)\b/i;
 const NOTE_SPEND_LINE_RE = /^.*$/gm;
+const SPEND_LINE_EXEMPT_SLUGS: ReadonlySet<string> = new Set(["dollar-cost-averaging"]);
 
 /** Lines that hold both a money amount and a spend verb. */
 function spendLines(text: string): string[] {
@@ -71,15 +72,17 @@ function hasNewMatch(re: RegExp, next: string, previous: string | undefined): bo
  * reference prices are allowed, and anything in History. With `previousBody`, only lines/rows that are NEW
  * relative to it are rejected, so editing an existing Note that already holds them does not fail.
  */
-export function assertNoteBodyNotSheetLike(body: string, previousBody?: string): void {
+export function assertNoteBodyNotSheetLike(body: string, previousBody?: string, slug?: string): void {
   const prevCounts = new Map<string, number>();
+  // Investment plan Notes hold invested amounts by design; only the spend-line check is skipped for them.
+  const checkSpendLines = slug === undefined || !SPEND_LINE_EXEMPT_SLUGS.has(slug);
   if (previousBody !== undefined) {
     for (const l of spendLines(stripHistorySection(previousBody))) {
       prevCounts.set(l.trim(), (prevCounts.get(l.trim()) ?? 0) + 1);
     }
   }
   const seen = new Map<string, number>();
-  for (const l of spendLines(stripHistorySection(body))) {
+  for (const l of checkSpendLines ? spendLines(stripHistorySection(body)) : []) {
     const key = l.trim();
     const n = (seen.get(key) ?? 0) + 1;
     seen.set(key, n);
@@ -94,7 +97,7 @@ export function assertNoteBodyNotSheetLike(body: string, previousBody?: string):
 
 /** Procedure Notes must include ## Rules unless they're legacy notes that never had it. */
 export function validateProcedureNoteBody(slug: string, body: string, previousBody?: string): void {
-  assertNoteBodyNotSheetLike(body, previousBody);
+  assertNoteBodyNotSheetLike(body, previousBody, slug);
   if (!(PROCEDURE_NOTE_SLUGS as readonly string[]).includes(slug)) {
     return;
   }
