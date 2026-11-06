@@ -12,7 +12,7 @@ tts_auto = "voice"             # off | voice | always
 
 [assistant]
 model = "claude-haiku-5-5"     # non-claude ids fall back to this
-reasoning = "low"              # off | low | medium | high
+reasoning = "off"              # off | low | medium | high
 idle_reset_hours = 6
 
 [sheets]
@@ -42,7 +42,7 @@ monthly_review_job_id = "..."
 | Key | Meaning |
 |-----|---------|
 | `model` | Claude model id. Haiku 5.5 is the default ($0.10 in / $0.50 out per MTok, cache read $0.01; 5× above 100K-token prompts). |
-| `reasoning` | Session effort (default `low`): `low`, `medium` or `high` run adaptive thinking at that effort; `off` disables thinking. Higher is slower and uses more quota. A turn runs at effort `medium` (with `off`: a 4096-token thinking budget) for that turn only when the text starts with `think:` (prefix stripped) or matches a complex-prose rule (compare/vs, pros and cons, which is better, plan my/a/the, step by step, why does/is/do/did/would, calculate/total cost, should I ... or, trade-offs, remember/note down/add to note/update…note/edits to house rules or about me) or is over 300 chars or has two questions; `,commands`, intercepts and media never trigger. `turn_log` records `thinking` and `think_rule` (`melvbot turns` shows `think=`). |
+| `reasoning` | Session effort (default `off`): `low`, `medium` or `high` run adaptive thinking at that effort; `off` disables thinking. Higher is slower and uses more quota. A turn runs at effort `medium` (with `off`: a 4096-token thinking budget) for that turn only when the text starts with `think:` (prefix stripped) or matches a complex-prose rule (compare/vs, pros and cons, which is better, plan my/a/the, step by step, why does/is/do/did/would, calculate/total cost, should I ... or, trade-offs, remember/note down/add to note/update…note/edits to house rules or about me) or is over 300 chars or has two questions; `,commands`, intercepts and media never trigger. `turn_log` records `thinking` and `think_rule` (`melvbot turns` shows `think=`). |
 | `idle_reset_hours` | A chat session older than this starts fresh. |
 
 ## `[notes]`

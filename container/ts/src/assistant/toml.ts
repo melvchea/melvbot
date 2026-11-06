@@ -4,7 +4,7 @@ import path from "node:path";
 import { parseTomlTable } from "../session/settings.js";
 
 export const DEFAULT_MODEL = "claude-haiku-5-5";
-export const DEFAULT_REASONING = "low";
+export const DEFAULT_REASONING = "off";
 export const DEFAULT_IDLE_RESET_HOURS = 6;
 
 export type Reasoning = "off" | "low" | "medium" | "high";
@@ -50,7 +50,7 @@ export function parseAssistantSection(text: string): AssistantToml {
   };
 }
 
-/** The Claude Agent SDK (Haiku 5.5, effort low) is the only conversational backend; there is
+/** The Claude Agent SDK (Haiku 5.5, thinking off) is the only conversational backend; there is
  * no `[assistant] provider` to select or validate. */
 export function loadAssistantToml(filePath = tomlPath()): AssistantToml {
   const text = existsSync(filePath) ? readFileSync(filePath, "utf8") : "";
