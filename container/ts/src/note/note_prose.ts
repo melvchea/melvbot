@@ -21,7 +21,7 @@ export async function noteListReply(): Promise<LinkListMessage> {
     notes.map((row) => {
       const docId = ids[row.slug];
       return {
-        label: `${row.slug} — ${row.title}`,
+        label: row.title,
         url: docId ? googleDocEditUrl(docId) : undefined,
       };
     }),
