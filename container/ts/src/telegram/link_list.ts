@@ -11,7 +11,7 @@ export type LinkListMessage = {
 };
 
 export function assembleLinkListLines(
-  lines: Array<{ label: string; url?: string }>,
+  lines: Array<{ label: string; url?: string; prefix?: string }>,
   emptyText: string,
 ): LinkListMessage {
   if (!lines.length) {
@@ -25,7 +25,9 @@ export function assembleLinkListLines(
       chunks.push("\n");
       offset += 1;
     }
-    chunks.push(line.label);
+    const prefix = line.prefix ?? "";
+    chunks.push(prefix, line.label);
+    offset += prefix.length;
     if (line.url) {
       entities.push({
         type: "text_link",
