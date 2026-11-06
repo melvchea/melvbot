@@ -72,10 +72,16 @@ type DriveFile = {
   trashed?: boolean;
 };
 
+type DocsElement = {
+  endIndex?: number;
+  paragraph?: { elements?: Array<{ textRun?: { content?: string } }> };
+  table?: { tableRows?: Array<{ tableCells?: Array<{ content?: DocsElement[] }> }> };
+};
+
 type DocsDocument = {
   documentId?: string;
   revisionId?: string;
-  body?: { content?: Array<{ endIndex?: number; paragraph?: { elements?: Array<{ textRun?: { content?: string } }> } }> };
+  body?: { content?: DocsElement[] };
 };
 
 async function googleFetch(url: string, init: RequestInit = {}): Promise<unknown> {
@@ -234,16 +240,26 @@ export function parseNoteDocument(text: string, slug: string): {
   };
 }
 
-function extractDocText(doc: DocsDocument): string {
-  const parts: string[] = [];
-  for (const element of doc.body?.content ?? []) {
+function collectElementText(elements: DocsElement[], parts: string[]): void {
+  for (const element of elements) {
     for (const piece of element.paragraph?.elements ?? []) {
       const content = piece.textRun?.content;
       if (content) {
         parts.push(content);
       }
     }
+    // Table cells hold paragraphs too; skipping them hid whole sections (e.g. a market log kept as a table).
+    for (const row of element.table?.tableRows ?? []) {
+      for (const cell of row.tableCells ?? []) {
+        collectElementText(cell.content ?? [], parts);
+      }
+    }
   }
+}
+
+export function extractDocText(doc: DocsDocument): string {
+  const parts: string[] = [];
+  collectElementText(doc.body?.content ?? [], parts);
   return parts.join("");
 }
 
