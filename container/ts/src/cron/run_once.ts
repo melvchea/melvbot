@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { endPromptIdleSessions } from "../assistant/claude_session.js";
 import { dcaNoteBlock, fetchYahooQuote, prefetchRule, type Quote } from "../assistant/rule_prefetch.js";
 import { routedSearch } from "../assistant/search_router.js";
-import { appendNoteHistory, getNote } from "../note/notes.js";
+import { getNote } from "../note/notes.js";
 import { runBackup } from "./backup.js";
 import { titleLine } from "../telegram/title_line.js";
 import { runTurn } from "../assistant/turn.js";
@@ -450,9 +450,8 @@ export function cleanDcaBody(text: string): string {
 
 export const DCA_INSTRUCTIONS =
   "## Prefetched data (searches, quotes and the DCA note already fetched; you have no tools and step 2 does not apply: write n/a for anything missing, never invent numbers). Searches ran fresh for this run: build Drivers from the web_search_news headlines, and never write \"no fresh fetch\".\n" +
-  "Ignore any instruction to call melvbot_cli. Reply with exactly two tagged blocks and nothing else:\n" +
-  "<telegram>the market update in the job's \"Format (concise bullets)\" above, not the <rule> format: bullets only (• US, • STI, • Drivers, • Plan; skip the title line and the Bonds bullet, both are added in code; never mention bond yields or the 10Y in any bullet), every line starting with •, plain text (& not &amp;)</telegram>\n" +
-  "<note_entry>one line for the note's History: plan status, then today's US/STI/10Y levels (no date, it is added in code; do not rewrite the note)</note_entry>";
+  "Ignore any instruction to call melvbot_cli or to update the note (it is never written). Reply with exactly one tagged block and nothing else:\n" +
+  "<telegram>the market update in the job's \"Format (concise bullets)\" above, not the <rule> format: bullets only (• US, • STI, • Drivers, • Plan; skip the title line and the Bonds bullet, both are added in code; never mention bond yields or the 10Y in any bullet), every line starting with •, plain text (& not &amp;)</telegram>";
 
 async function dcaWebSearch(): Promise<string> {
   const run = async (source: string, query: string): Promise<string> => {
@@ -472,14 +471,12 @@ async function dcaWebSearch(): Promise<string> {
 }
 
 /** Splits the model reply into the Telegram message and a one-line History entry; null when either block is missing or empty. */
-export function parseDcaReply(reply: string): { telegram: string; noteEntry: string } | null {
+export function parseDcaReply(reply: string): { telegram: string } | null {
   // MiniMax sometimes HTML-escapes the tags themselves.
-  reply = reply.replace(/&lt;(\/?(?:telegram|note_entry))&gt;/g, "<$1>");
-  const pick = (tag: string) => reply.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]?.trim() ?? "";
+  reply = reply.replace(/&lt;(\/?telegram)&gt;/g, "<$1>");
   // MiniMax HTML-escapes & and uses "-" bullets despite the prompt; normalise in code.
-  const telegram = pick("telegram").replace(/&amp;/g, "&").replace(/^\s*[-*]\s/gm, "• ");
-  const noteEntry = pick("note_entry").replace(/&amp;/g, "&").replace(/\s*\n\s*/g, " ");
-  return telegram && noteEntry ? { telegram, noteEntry } : null;
+  const telegram = (reply.match(/<telegram>([\s\S]*?)<\/telegram>/)?.[1]?.trim() ?? "").replace(/&amp;/g, "&").replace(/^\s*[-*]\s/gm, "• ");
+  return telegram ? { telegram } : null;
 }
 
 async function runDcaViaHaiku(prompt: string): Promise<{ ok: boolean; text: string }> {
@@ -502,10 +499,8 @@ async function runDcaViaHaiku(prompt: string): Promise<{ ok: boolean; text: stri
       last = text;
     }
     if (!parsed) {
-      return { ok: false, text: `Haiku reply missing <telegram> or <note_entry> (${last.length} chars, ends: ${last.slice(-200)})` };
+      return { ok: false, text: `Haiku reply missing <telegram> (${last.length} chars, ends: ${last.slice(-200)})` };
     }
-    // Append one History line instead of rewriting the ~20k-char body (MiniMax truncated the full rewrite).
-    await appendNoteHistory("dollar-cost-averaging", parsed.noteEntry, note.revision_id);
     return { ok: true, text: parsed.telegram };
   } catch (error) {
     return { ok: false, text: error instanceof Error ? error.message : String(error) };
