@@ -44,7 +44,8 @@ function rulesSection(body: string): string {
   return after.slice(0, end).trim();
 }
 
-function assertProtectedReplaceAllowed(slug: string, beforeText: string, newText: string): void {
+/** `allowShrink` skips only the size check (never ## Rules, never about-me/house-rules); callers pass it only from a confirmed write. */
+export function assertProtectedReplaceAllowed(slug: string, beforeText: string, newText: string, allowShrink = false): void {
   const protectedNote = PROTECTED_NOTE_SLUGS.has(slug);
   const beforeBody = parseNoteDocument(beforeText, slug).body;
   const newBody = parseNoteDocument(newText, slug).body;
@@ -58,7 +59,7 @@ function assertProtectedReplaceAllowed(slug: string, beforeText: string, newText
       throw new Error("refusing note replace that would shrink ## Rules by more than half");
     }
   }
-  if (isDestructiveShrink(beforeText.length, newText.length, protectedNote)) {
+  if (!(allowShrink && !protectedNote) && isDestructiveShrink(beforeText.length, newText.length, protectedNote)) {
     throw new Error("refusing note replace that would drop most of the document");
   }
 }
@@ -276,7 +277,7 @@ export async function readDocumentRevision(documentId: string): Promise<{ revisi
 async function replaceDocText(
   documentId: string,
   text: string,
-  options: { slug?: string; expectRevisionId?: string } = {},
+  options: { slug?: string; expectRevisionId?: string; allowShrink?: boolean } = {},
 ): Promise<string> {
   const doc = (await googleFetch(
     `https://docs.googleapis.com/v1/documents/${encodeURIComponent(documentId)}`,
@@ -288,7 +289,7 @@ async function replaceDocText(
     );
   }
   if (options.slug) {
-    assertProtectedReplaceAllowed(options.slug, beforeText, text);
+    assertProtectedReplaceAllowed(options.slug, beforeText, text, options.allowShrink);
   } else if (isDestructiveShrink(beforeText.length, text.length)) {
     throw new Error("refusing note replace that would drop most of the document");
   }
@@ -445,7 +446,7 @@ export async function upsertNoteDocument(
   slug: string,
   docId: string | undefined,
   record: { title: string; tags: string[]; body: string; created_at: string; updated_at: string; use_when?: string },
-  options: { expectRevisionId?: string } = {},
+  options: { expectRevisionId?: string; allowShrink?: boolean } = {},
 ): Promise<{ inserted: boolean; docId: string; revision_id: string }> {
   const text = encodeNoteDocument({
     title: record.title,
@@ -470,6 +471,6 @@ export async function upsertNoteDocument(
   }
   await assertDriveFileNotTrashed(docId, `note ${slug}`);
   await updateDriveProps(docId, props);
-  const revisionId = await replaceDocText(docId, text, { slug, expectRevisionId: options.expectRevisionId });
+  const revisionId = await replaceDocText(docId, text, { slug, expectRevisionId: options.expectRevisionId, allowShrink: options.allowShrink });
   return { inserted: false, docId, revision_id: revisionId };
 }

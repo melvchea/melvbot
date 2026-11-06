@@ -49,3 +49,14 @@ test("an offered note write (stage: true) leaves a pending confirmation that a b
   assert.equal(code, state.pendingConfirmation?.code);
   assert.deepEqual((consumeConfirmation(code ?? "") as { payload: unknown } | null)?.payload, { args: argv });
 });
+
+test("note add --allow-shrink is refused unstaged and stages a Confirm when staged", async () => {
+  const argv = ["note", "add", "dca", "--title", "DCA", "--body", "short", "--expect-rev", "r1", "--allow-shrink"];
+  const direct = await runMelvbotCliInner({ args: argv }, newMcpTurnState("telegram", "telegram:78", "clean up", false));
+  assert.equal(direct.isError, true);
+  assert.match(direct.content[0].text, /stage: true/);
+  const state = newMcpTurnState("telegram", "telegram:78", "clean up", false);
+  const staged = await runMelvbotCliInner({ args: argv, stage: true }, state);
+  assert.match(staged.content[0].text, /needs confirmation/);
+  assert.match(state.pendingConfirmation?.summary ?? "", /Replace the whole note dca/);
+});

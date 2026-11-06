@@ -207,6 +207,8 @@ export async function addNote(options: {
   docId?: string;
   useWhen?: string;
   expectRevisionId?: string;
+  /** Set only from a Confirm-staged `note add --allow-shrink`: skips the "drops most of the document" size check. */
+  allowShrink?: boolean;
   skipChangeLog?: boolean;
   internalWrite?: boolean;
   changeAction?: string;
@@ -280,7 +282,7 @@ export async function addNote(options: {
         updated_at: now,
         use_when: useWhen,
       },
-      { expectRevisionId: options.expectRevisionId },
+      { expectRevisionId: options.expectRevisionId, allowShrink: options.allowShrink },
     );
     if (!(slug in pinnedIds) && persisted.docId) {
       await pinNoteSlug(slug, persisted.docId);

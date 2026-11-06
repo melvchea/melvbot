@@ -164,6 +164,9 @@ export function stagedNoteSummary(action: string, argv: string[]): string {
   if (action === "note replace-text") {
     return `Update note ${slug}?\n\nReplace:\n• ${clipStaged(rest[0] ?? "")}\n\nWith:\n• ${clipStaged(rest[1] ?? "")}`;
   }
+  if (action === "note add" && argv.includes("--allow-shrink")) {
+    return `Replace the whole note ${slug}? Old content not in the new text is deleted.\n\n• ${clipStaged(rest.join(" "))}`;
+  }
   const head = action === "note add" ? `Save note ${slug}?` : action === "note append-history" ? `Add to note ${slug}?` : `Update note ${slug}?`;
   return `${head}\n\n• ${clipStaged(rest.join(" "))}`;
 }
@@ -191,6 +194,10 @@ export async function runMelvbotCliInner(args: ToolArgs, state: McpTurnState): P
       state.pendingConfirmation = createConfirmation(state.chatKey ?? "cron", action, { args: argv }, stagedNoteSummary(action, argv));
       return "this action needs confirmation";
     });
+  }
+  if (action === "note add" && argv.includes("--allow-shrink")) {
+    // Reached only unstaged: the size-guard override must go through Confirm (`stage: true`).
+    return textResult("note add --allow-shrink needs stage: true so the user taps Confirm first", true);
   }
   if (action === "note add") {
     const parsed = noteAddSlugAndBody(argv);

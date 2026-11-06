@@ -103,6 +103,7 @@ export async function runNoteCli(args: string[]): Promise<number> {
           docId,
           useWhen,
           expectRevisionId: flag(rest, "--expect-rev"),
+          allowShrink: rest.includes("--allow-shrink"),
         }),
       );
       return 0;
