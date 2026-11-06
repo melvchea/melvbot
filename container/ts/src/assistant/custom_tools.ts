@@ -11,7 +11,6 @@ import {
   type PendingConfirmation,
 } from "./confirm.js";
 import {
-  capNoteBodyForRead,
   findSimilarNoteSlugs,
   getNote,
   listNotes,
@@ -180,7 +179,7 @@ export async function runMelvbotCliInner(args: ToolArgs, state: McpTurnState): P
     // Live read, not the read cache: the revision_id returned here is the one the next write must send.
     return guarded(async () => {
       const note = await getNote(argv[2]);
-      return JSON.stringify({ ...note, body: capNoteBodyForRead(note.body) }, null, 2);
+      return JSON.stringify(note, null, 2);
     });
   }
   if (action === "note list" && argv.length === 2) {

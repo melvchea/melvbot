@@ -135,16 +135,6 @@ export async function getNote(slug: string): Promise<{
   return { ...record, last_source_ref: record.last_source_ref, url: googleDocEditUrl(docId) };
 }
 
-/** Body cap for `note get` output; longer bodies get a truncation marker (write paths read the full body). */
-export const NOTE_GET_MAX_CHARS = 12_000;
-
-export function capNoteBodyForRead(body: string, maxChars = NOTE_GET_MAX_CHARS): string {
-  if (body.length <= maxChars) {
-    return body;
-  }
-  return `${body.slice(0, maxChars)}\n[truncated, ${body.length - maxChars} chars omitted]`;
-}
-
 async function pinNoteSlug(slug: string, docId: string): Promise<void> {
   rewriteSheetTomlKey({ table: NOTES_TABLE, key: slug, value: docId });
 }
