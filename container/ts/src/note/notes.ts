@@ -459,7 +459,7 @@ export async function replaceNoteSection(
   heading: string,
   content: string,
   expectRevisionId?: string,
-  options: { position?: SectionPosition; skipChangeLog?: boolean; chatKey?: string | null } = {},
+  options: { position?: SectionPosition; skipChangeLog?: boolean; chatKey?: string | null; allowShrink?: boolean } = {},
 ): Promise<{ receipt?: WriteReceipt }> {
   const cleaned = validateSlug(slug);
   const cleanedHeading = validateSectionHeading(heading);
@@ -499,7 +499,7 @@ export async function replaceNoteSection(
       updated_at: now,
       use_when: existing.use_when,
     },
-    { expectRevisionId },
+    { expectRevisionId, allowShrink: options.allowShrink },
   );
   let receipt: WriteReceipt | undefined;
   if (!options.skipChangeLog) {

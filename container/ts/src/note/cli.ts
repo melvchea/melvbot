@@ -168,7 +168,8 @@ export async function runNoteCli(args: string[]): Promise<number> {
     }
     if (args[0] === "replace-section") {
       const bottom = args.includes("--bottom");
-      const rest = args.slice(1).filter((part) => part !== "--bottom");
+      const allowShrink = args.includes("--allow-shrink");
+      const rest = args.slice(1).filter((part) => part !== "--bottom" && part !== "--allow-shrink");
       const [slug, heading, content] = positionals(rest, ["--expect-rev"]);
       if (!slug || !heading || !content) {
         return usage();
@@ -176,6 +177,7 @@ export async function runNoteCli(args: string[]): Promise<number> {
       writeJson(
         await replaceNoteSection(slug, heading, content, flag(rest, "--expect-rev"), {
           position: bottom ? "bottom" : "top",
+          allowShrink,
         }),
       );
       return 0;

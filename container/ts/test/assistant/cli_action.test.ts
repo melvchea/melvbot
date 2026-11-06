@@ -59,4 +59,8 @@ test("note add --allow-shrink is refused unstaged and stages a Confirm when stag
   const staged = await runMelvbotCliInner({ args: argv, stage: true }, state);
   assert.match(staged.content[0].text, /needs confirmation/);
   assert.match(state.pendingConfirmation?.summary ?? "", /Replace the whole note dca/);
+  const section = ["note", "replace-section", "dca", "## History", "- x", "--expect-rev", "r1", "--allow-shrink"];
+  const directSection = await runMelvbotCliInner({ args: section }, newMcpTurnState("telegram", "telegram:78", "clean up", false));
+  assert.equal(directSection.isError, true);
+  assert.match(directSection.content[0].text, /stage: true/);
 });
