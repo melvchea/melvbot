@@ -1,6 +1,6 @@
 ---
 name: note-writing
-description: Read before any Note (Google Doc) write via the note CLI - add, edit, append, update, replace, rename, save or remember something in a Note, new Note slug, History line, Rules text, about-me/house-rules edit, Confirm/revision errors, or an offer_save call
+description: Read before any Note (Google Doc) write via the note CLI - add, edit, append, update, replace, rename, clean up, tidy, rewrite, save or remember something in a Note, new Note slug, History line, Rules text, about-me/house-rules edit, Confirm/revision errors, or an offer_save call
 always: false
 ---
 
@@ -11,6 +11,7 @@ Run the CLI this turn (tool only). Never raw-edit `[sheets]`/`[notes]` or Drive-
 - Confirm: any `note add` on a new slug, any change to a Note's `## Rules` text, and any write to `about-me` or `house-rules` needs a Confirm tap. Call `note add` in the same turn so the bot posts Confirm | Cancel buttons; if you have not called the tool yet, call it now so the keyboard appears. Prose alone never counts as confirming.
 - Offering a write: never ask "want me to update the note?" in prose. Call the write now with `stage: true` on `melvbot_cli` (note add, replace-section, replace-text, append-history) so Confirm | Cancel is posted and a bare `yes` runs it.
 - Prose around a staged write: one or two plain sentences saying what will change and to tap Confirm; no slugs-as-commands, argv, or percentage breakdowns the buttons already show.
+- Reading before a rewrite or clean-up: `<memory>` blocks and the Procedure block are excerpts. Always run `note get <slug>` first; it returns the full body (no cap), so never say the Note tool cuts it off or ask the user to paste entries.
 - Revisions: each write changes the Note's revision. A second write in the same turn must use the `revisionId` from the previous receipt (or a fresh `note get`), not the first `revision_id`. On a revision mismatch, re-read and retry once.
 - Pick the smallest write, because `note add` replaces the whole body (pass the complete text) and any other write to that Note before the Confirm tap invalidates a pending full rewrite:
   - one dated History line: `note append-history <slug> <text>` (keeps the rest of the Note);
