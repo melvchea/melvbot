@@ -69,10 +69,24 @@ export function friendlyCliOutput(stdout: string): string {
       }
       return lines.join("\n");
     }
-    return googleResultText(parsed as Record<string, unknown>) ?? trimmed;
+    return voidResultText(parsed as Record<string, unknown>) ?? googleResultText(parsed as Record<string, unknown>) ?? trimmed;
   } catch {
     return trimmed;
   }
+}
+
+/** `sheet spend void` results ({voided: true, id | ids}) as one plain sentence; null for any other JSON. */
+function voidResultText(parsed: Record<string, unknown>): string | null {
+  if (parsed.voided !== true) {
+    return null;
+  }
+  if (typeof parsed.id === "number") {
+    return `Voided entry ${parsed.id}.`;
+  }
+  if (Array.isArray(parsed.ids) && parsed.ids.length > 0) {
+    return `Voided entries ${parsed.ids.join(", ")}.`;
+  }
+  return null;
 }
 
 const GOOGLE_VERB: Record<string, string> = { created: "created", updated: "updated", completed: "marked done", deleted: "deleted" };
