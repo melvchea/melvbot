@@ -54,6 +54,7 @@ These always ask for Confirm: new, About-me or house-rules note writes, note del
 | `memory undo` | Undo the last memory write |
 | `turns` | Turn log with per-route counts (host `dturns`) |
 | `notify` | Send a Telegram message from the host |
+| `search <query>` / `fetch <url...>` | Host Claude Code web access via `docker exec melvbot melvbot ...`: search is Kagi then Brave only; fetch is the bot's page chain (Firecrawl, Bright Data, in-process) |
 
 ## Observability
 

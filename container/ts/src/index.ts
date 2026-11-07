@@ -12,8 +12,9 @@ import { runMemoryCli } from "./memory/cli.js";
 import { runNoteCli } from "./note/cli.js";
 import { runOutlookCli } from "./outlook/cli.js";
 import { runNotifyCli } from "./telegram/notify_cli.js";
+import { runSearchCli } from "./assistant/search_cli.js";
 
-const CLI_USAGE = "usage: melvbot doctor | sheet | note | memory | google | outlook | cron | turns | notify";
+const CLI_USAGE = "usage: melvbot doctor | sheet | note | memory | google | outlook | cron | turns | notify | search | fetch";
 
 export function isTelegramPollArgv(args: readonly string[]): boolean {
   return args.length === 0;
@@ -44,6 +45,9 @@ async function main(): Promise<void> {
   }
   if (args[0] === "outlook") {
     process.exit(await runOutlookCli(args.slice(1)));
+  }
+  if (args[0] === "search" || args[0] === "fetch") {
+    process.exit(await runSearchCli(args[0], args.slice(1)));
   }
   if (args[0] === "turns") {
     process.exit(runTurnsCli(args.slice(1)));
