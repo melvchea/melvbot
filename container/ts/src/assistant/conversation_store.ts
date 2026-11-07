@@ -167,6 +167,12 @@ function openDb(dbPath = conversationDbPath()): DatabaseSync {
   if (!turnLogColumns.has("recall_miss")) {
     db.exec("ALTER TABLE turn_log ADD COLUMN recall_miss INTEGER");
   }
+  if (!turnLogColumns.has("recall_slug")) {
+    db.exec("ALTER TABLE turn_log ADD COLUMN recall_slug TEXT");
+  }
+  if (!turnLogColumns.has("recall_score")) {
+    db.exec("ALTER TABLE turn_log ADD COLUMN recall_score REAL");
+  }
   chmodSync(dbPath, 0o600);
   return db;
 }
@@ -678,6 +684,9 @@ export type TurnLogEntry = {
   cliCmds?: string[] | null;
   /** 1 when the turn ran `note get` with no recall note body injected; null when not recorded. */
   recallMiss?: number | null;
+  /** Top-ranked recall note for the prompt (even if not injected); null when nothing ranked. */
+  recallSlug?: string | null;
+  recallScore?: number | null;
 };
 
 /**
@@ -688,8 +697,8 @@ export function recordTurn(entry: Omit<TurnLogEntry, "createdAt">, dbPath = conv
   const db = openDb(dbPath);
   try {
     db.prepare(
-      `INSERT INTO turn_log (created_at, chat_key, source, route, tools, input_tokens, output_tokens, ms, status, prompt, ttft_ms, spawn_ms, round_trips, context_tokens, pre_ms, tool_ms, tool_calls, thinking, think_rule, cache_read_tokens, cache_write_tokens, cli_cmds, recall_miss)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO turn_log (created_at, chat_key, source, route, tools, input_tokens, output_tokens, ms, status, prompt, ttft_ms, spawn_ms, round_trips, context_tokens, pre_ms, tool_ms, tool_calls, thinking, think_rule, cache_read_tokens, cache_write_tokens, cli_cmds, recall_miss, recall_slug, recall_score)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       now.toISOString(),
       entry.chatKey,
@@ -714,6 +723,8 @@ export function recordTurn(entry: Omit<TurnLogEntry, "createdAt">, dbPath = conv
       entry.cacheWriteTokens ?? null,
       entry.cliCmds ? JSON.stringify(entry.cliCmds) : null,
       entry.recallMiss ?? null,
+      entry.recallSlug ?? null,
+      entry.recallScore ?? null,
     );
     const cutoff = new Date(now.getTime() - TURN_LOG_DAYS * 24 * MS_PER_HOUR).toISOString();
     db.prepare("DELETE FROM turn_log WHERE created_at < ?").run(cutoff);
@@ -782,6 +793,8 @@ export function recentTurns(days: number, dbPath = conversationDbPath(), now = n
       thinkRule: row.think_rule == null ? null : String(row.think_rule),
       cliCmds: row.cli_cmds == null ? null : (JSON.parse(String(row.cli_cmds)) as string[]),
       recallMiss: row.recall_miss == null ? null : Number(row.recall_miss),
+      recallSlug: row.recall_slug == null ? null : String(row.recall_slug),
+      recallScore: row.recall_score == null ? null : Number(row.recall_score),
     }));
   } finally {
     db.close();

@@ -124,9 +124,10 @@ export function untrustedSource(tags: string[]): "forwarded" | "web" | null {
   return lower.includes("source:forwarded") ? "forwarded" : null;
 }
 
-export type RecallResult ={ text: string; key: string | null };
+/** `slug`/`score` = the top-ranked pick (logged in turn_log even when its body was not injected). */
+export type RecallResult = { text: string; key: string | null; slug: string | null; score: number | null };
 
-const NO_RECALL: RecallResult = { text: "", key: null };
+export const NO_RECALL: RecallResult = { text: "", key: null, slug: null, score: null };
 
 /** Injects the best-matching Note (plus a close runner-up) so recall does not depend on the model calling `note get`. */
 export async function recallPrefix(query: string, dbPath?: string): Promise<RecallResult> {
@@ -152,8 +153,11 @@ export async function recallPrefix(query: string, dbPath?: string): Promise<Reca
     blocks.push(`<memory tier="semantic" ${attrs}>\n${guard}${excerptBody(note.body, query, pick.slug, max)}\n</memory>`);
     keys.push(`${pick.slug}@${note.updatedAt}`);
   }
+  const top = picks[0];
+  const slug = top?.slug ?? null;
+  const score = top?.score ?? null;
   if (blocks.length === 0) {
-    return NO_RECALL;
+    return { ...NO_RECALL, slug, score };
   }
-  return { text: blocks.join("\n"), key: keys.join("|") };
+  return { text: blocks.join("\n"), key: keys.join("|"), slug, score };
 }

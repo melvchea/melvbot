@@ -138,12 +138,18 @@ function noteAddSlugAndBody(args: readonly string[]): { slug: string; body: stri
   return { slug, body };
 }
 
+/** turn_log label: first two non-flag tokens; `note` commands also keep the slug (third token), never free text. */
+export function cliCmdLabel(argv: unknown[]): string {
+  const tokens = argv.filter((a): a is string => typeof a === "string" && !a.startsWith("-"));
+  return tokens.slice(0, tokens[0] === "note" ? 3 : 2).join(" ");
+}
+
 /** After a Calendar write the reminder ticker re-fetches now, so a near-term reminder is not up to 5 min late. */
 async function runMelvbotCli(args: ToolArgs, state: McpTurnState): Promise<ToolResult> {
   const result = await runMelvbotCliInner(args, state);
   const argv = args.args;
   if (Array.isArray(argv)) {
-    state.cliCmds.push(argv.filter((a) => typeof a === "string" && !a.startsWith("-")).slice(0, 2).join(" "));
+    state.cliCmds.push(cliCmdLabel(argv));
   }
   if (!result.isError && Array.isArray(argv) && argv[0] === "google" && argv[1] === "calendar" && ["create", "update", "delete"].includes(argv[2])) {
     requestReminderRefresh();

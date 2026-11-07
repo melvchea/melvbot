@@ -57,6 +57,20 @@ function storedMessage(seq: number, role: "user" | "assistant", text: string): S
   };
 }
 
+test("recordTurn stores the top recall slug and score, and null when nothing ranked", () => {
+  const dbPath = tempDbPath("turn_log.sqlite3");
+  const entry = { chatKey: "c", source: "telegram", route: "claude", tools: [], inputTokens: 1, outputTokens: 1, ms: 1, status: "ok", prompt: "p" };
+  recordTurn({ ...entry, recallSlug: "phone-buy", recallScore: 2.5 }, dbPath);
+  recordTurn(entry, dbPath);
+  const db = new DatabaseSync(dbPath);
+  try {
+    const rows = db.prepare("SELECT recall_slug AS s, recall_score AS c FROM turn_log ORDER BY id").all() as { s: string | null; c: number | null }[];
+    assert.deepEqual(rows.map((row) => [row.s, row.c]), [["phone-buy", 2.5], [null, null]]);
+  } finally {
+    db.close();
+  }
+});
+
 test("recordTurn cuts prompts older than TURN_LOG_PROMPT_DAYS to a short prefix and keeps the row", () => {
   const dbPath = tempDbPath("turn_log.sqlite3");
   const now = new Date("2026-10-10T04:00:00Z");

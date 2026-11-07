@@ -17,7 +17,7 @@ import { ClaudeUnavailableError, closeLiveSession, prewarmLiveSession, runClaude
 import { FALLBACK_NOTICE, runFallbackTurn } from "./fallback.js";
 import { wrapUntrustedImageText } from "../telegram/image_caption.js";
 import { sgtNowStamp } from "./now_stamp.js";
-import { recallPrefix } from "./recall.js";
+import { NO_RECALL, recallPrefix } from "./recall.js";
 import { prefetchRule, ruleTriggerSearches } from "./rule_prefetch.js";
 import { buildSystemPromptFrozen } from "./system_prompt.js";
 import { thinkTrigger } from "./think_trigger.js";
@@ -37,7 +37,7 @@ export const RESUME_CONTEXT_TOKEN_LIMIT = 40_000;
 
 /** turn_log recall_miss: 1 when the turn ran `note get` and no recall note body was injected this turn. */
 export function recallMissFlag(cliCmds: string[] | null | undefined, recallInjected: boolean): number {
-  return !recallInjected && (cliCmds ?? []).includes("note get") ? 1 : 0;
+  return !recallInjected && (cliCmds ?? []).some((cmd) => cmd === "note get" || cmd.startsWith("note get ")) ? 1 : 0;
 }
 
 function auditMessage(text: string): NewMessage["contentJson"] {
@@ -67,6 +67,8 @@ function logAssistantTurn(fields: {
   toolCalls?: number | null;
   cliCmds?: string[] | null;
   recallMiss?: number | null;
+  recallSlug?: string | null;
+  recallScore?: number | null;
   dbPath?: string;
 }): void {
   try {
@@ -94,6 +96,8 @@ function logAssistantTurn(fields: {
         toolCalls: fields.toolCalls,
         cliCmds: fields.cliCmds,
         recallMiss: fields.recallMiss,
+        recallSlug: fields.recallSlug,
+        recallScore: fields.recallScore,
       },
       fields.dbPath,
     );
@@ -200,7 +204,7 @@ export async function runTurn(rawOptions: RunTurnOptions, deps: RunTurnDeps = {}
   }
   const [prefetch, recall, system, rulePrefetch] = await Promise.all([
     webPrefetchPromise,
-    useRecall ? recallPrefix(options.prompt, dbPath) : Promise.resolve({ text: "", key: null }),
+    useRecall ? recallPrefix(options.prompt, dbPath) : Promise.resolve(NO_RECALL),
     systemPromise,
     rulePrefetchPromise,
   ]);
@@ -376,6 +380,8 @@ export async function runTurn(rawOptions: RunTurnOptions, deps: RunTurnDeps = {}
     toolCalls: outcome.toolCalls,
     cliCmds: outcome.cliCmds,
     recallMiss: recallMissFlag(outcome.cliCmds, recallInjected),
+    recallSlug: recall.slug,
+    recallScore: recall.score,
   });
 
   return {
