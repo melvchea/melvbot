@@ -17,8 +17,10 @@ step() { # step <label> <cmd...>
   local label=$1; shift
   if (( dry )); then echo "[dry-run] $label: $*"; return 0; fi
   echo "ddeploy: $label..."
+  local t0=$SECONDS
   "$@"; local rc=$?
   if (( rc != 0 )); then echo "ddeploy: $label failed (exit $rc)" >&2; exit "$rc"; fi
+  echo "ddeploy: $label took $(( SECONDS - t0 ))s"
 }
 
 rollback() { # rollback <reason>: put the previous image back, if one was saved
@@ -66,14 +68,17 @@ if (( dry )); then
   exit 0
 fi
 ready=0
+t_wait=$SECONDS
 for _ in $(seq 60); do # running and not restart-looping for 2 consecutive checks, 0.5s apart
   read -r running restarts < <(docker inspect -f '{{.State.Running}} {{.RestartCount}}' melvbot 2>/dev/null)
   if [[ ${running:-} == true && ${restarts:-1} == 0 ]]; then (( ++ok >= 2 )) && { ready=1; break; }; else ok=0; fi
   sleep 0.5
 done
 if (( ! ready )); then rollback "melvbot not stable after 30s"; exit 1; fi
+t_doctor=$SECONDS
 out=$(docker exec melvbot melvbot doctor --probe 2>&1); rc=$?
 grep -Ev '^[^:]+: (ok|skip)( |$)' <<<"$out" || echo "doctor: all checks ok"
+echo "ddeploy: stable-wait took $(( t_doctor - t_wait ))s, doctor probe took $(( SECONDS - t_doctor ))s"
 if (( rc != 0 )); then rollback "doctor failed (exit $rc)"; exit "$rc"; fi
 if (( clean )); then # marks the container now running; a dirty deploy clears it
   mkdir -p "${state%/*}" && echo "$tree $(docker inspect -f '{{.Id}}' melvbot)" >"$state"
