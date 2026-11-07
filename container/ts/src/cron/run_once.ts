@@ -85,9 +85,11 @@ export async function createReminderTasks(
   text: string,
   now = new Date(),
   io = { search: tasksSearch, create: tasksCreate },
-): Promise<void> {
+): Promise<boolean> {
   const due = sgtToday(now);
-  for (const line of text.split("\n").filter((l) => l.startsWith("•"))) {
+  const lines = text.split("\n").filter((l) => l.startsWith("•"));
+  let allDone = lines.length > 0;
+  for (const line of lines) {
     const title = line.slice(1).trim();
     try {
       const open = await io.search(title);
@@ -95,9 +97,18 @@ export async function createReminderTasks(
         await io.create({ title, due });
       }
     } catch (error) {
+      allDone = false;
       console.error(`reminder task failed: ${title}`, error);
     }
   }
+  return allDone;
+}
+
+/** Creates the Tasks first, then posts the reminder with a `Google Tasks created` footer only when every bullet has one. */
+async function postReminderWithTasks(text: string, post: (text: string) => Promise<unknown>): Promise<string> {
+  const full = (await createReminderTasks(text)) ? `${text}\n\nGoogle Tasks created` : text;
+  await post(full);
+  return full;
 }
 
 function configDir(): string {
@@ -609,10 +620,7 @@ async function executeJob(job: CronJob): Promise<string> {
   }
   if (isWeeklyReminderPrompt(job.prompt)) {
     // Fixed list in the job prompt: rendered in code, no Claude call.
-    const text = renderWeeklyReminder(job.prompt, new Date());
-    await telegramNotify(text);
-    await createReminderTasks(text);
-    return text;
+    return postReminderWithTasks(renderWeeklyReminder(job.prompt, new Date()), telegramNotify);
   }
   if (isMonthlyFromWeeklyPrompt(job.prompt)) {
     const weekly = listCronJobs().find((candidate) => isWeeklyReminderPrompt(candidate.prompt));
@@ -620,18 +628,14 @@ async function executeJob(job: CronJob): Promise<string> {
     if (text === null) {
       return SILENT_OUTPUT;
     }
-    await notifyReminderText(job, text);
-    await createReminderTasks(text);
-    return text;
+    return postReminderWithTasks(text, (full) => notifyReminderText(job, full));
   }
   if (isMonthlyReminderPrompt(job.prompt)) {
     const text = renderMonthlyReminder(job.prompt, new Date());
     if (text === null) {
       return SILENT_OUTPUT;
     }
-    await notifyReminderText(job, text);
-    await createReminderTasks(text);
-    return text;
+    return postReminderWithTasks(text, (full) => notifyReminderText(job, full));
   }
   let prompt = job.prompt;
   let dailyTasks: DueTask[] = [];

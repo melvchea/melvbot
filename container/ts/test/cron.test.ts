@@ -190,7 +190,7 @@ test("backup alerts when a note lost over half its bytes or a sheet lost rows ag
 test("reminder bullets become Tasks due today unless an open one already exists", async () => {
   const created: { title: string; due?: string }[] = [];
   const text = "Weekly Reminder Sat 31 Oct 07:05\n\n• Book basketball\n• Charge car this evening";
-  await createReminderTasks(text, new Date("2026-10-31T07:05:00+08:00"), {
+  const allDone = await createReminderTasks(text, new Date("2026-10-31T07:05:00+08:00"), {
     search: async (q) => (q === "Book basketball" ? [{ id: "1", title: q, status: "needsAction", due: "2026-10-31T00:00:00.000Z", completed: "", notes: "" }] : []),
     create: async (task) => {
       created.push(task);
@@ -198,4 +198,5 @@ test("reminder bullets become Tasks due today unless an open one already exists"
     },
   });
   assert.deepEqual(created, [{ title: "Charge car this evening", due: "2026-10-31" }]);
+  assert.equal(allDone, true);
 });
