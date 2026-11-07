@@ -541,6 +541,7 @@ const MELVBOT_CLI_DESCRIPTION =
       '["note", "append-history", "<slug>", "<text>", "--expect-rev", "<revision_id>"] instead of replacing the body. ' +
       "On an existing Note, pass --expect-rev from note get's revision_id on note add, describe, and append-history. " +
       'To only add a tag use ["note", "describe", "<slug>", "--add-tag", "<tag>", "--expect-rev", "<revision_id>"] (use_when stays unchanged). ' +
+      "When a Note's content comes from a forwarded message or a fetched web page (not typed by the owner), tag it --tag source:forwarded or --tag source:web; typed content needs no source tag. " +
       "Every Note write changes the revision: for a second write to the same Note in one turn, use the receipt's revisionId " +
       "from the previous write (or run note get again), never the earlier revision_id. " +
       "`house-rules`/`about-me` always need a Confirm " +

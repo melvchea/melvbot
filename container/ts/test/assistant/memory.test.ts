@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 
-import { selectNoteForInjection } from "../../src/assistant/recall.js";
+import { selectNoteForInjection, untrustedSource } from "../../src/assistant/recall.js";
 import { assertSheetHeaders } from "../../src/sheet/sheets.js";
 
 test("selectNoteForInjection returns only the top note and gates weak scores", () => {
@@ -14,4 +14,10 @@ test("selectNoteForInjection returns only the top note and gates weak scores", (
 test("assertSheetHeaders rejects a drifted Rules header", () => {
   assert.doesNotThrow(() => assertSheetHeaders([["key", "value"], ["target", "1.00"]], ["key", "value"], "Rules"));
   assert.throws(() => assertSheetHeaders([["name", "amount"]], ["key", "value"], "Rules"), /format 1/);
+});
+
+test("untrustedSource flags forwarded and web notes, and treats untagged as typed", () => {
+  assert.equal(untrustedSource(["Source:Web", "ev"]), "web");
+  assert.equal(untrustedSource(["source:forwarded"]), "forwarded");
+  assert.equal(untrustedSource(["travel"]), null);
 });
