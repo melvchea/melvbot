@@ -9,7 +9,7 @@ export type SearchHit = { title: string; url: string; snippet: string; date?: st
 export type CallerKind = "interactive" | "background";
 export type SearchRoute = "cache" | "kagi" | "brave" | "firecrawl";
 export type SearchProvider = "kagi" | "brave" | "firecrawl";
-export const DEFAULT_SEARCH_PROVIDERS: readonly SearchProvider[] = ["kagi", "brave", "firecrawl"];
+export const DEFAULT_SEARCH_PROVIDERS: readonly SearchProvider[] = ["kagi", "brave"];
 
 export const BRAVE_MONTHLY_QUOTA = 1000;
 /** Fraction of the quota kept back (used for the status pace display). */
@@ -120,7 +120,7 @@ export function resetBraveExhaustion(): void {
 const errText = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /**
- * Searches the providers in SEARCH_PROVIDERS order (default kagi, brave, firecrawl) and returns the first
+ * Searches the providers in SEARCH_PROVIDERS order (default kagi, brave) and returns the first
  * non-empty answer. A provider that is disabled, over quota, errors or returns no hits falls through to
  * the next one. Throws only when a provider failed and no provider returned hits.
  */

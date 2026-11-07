@@ -38,7 +38,7 @@ Checked 2026-10-11 on `turn_log` (307 Claude turns since 2026-10-02); don't re-i
 
 ## Web tools
 
-`web_search` (Kagi first, then Brave, then Firecrawl; 8 results, each snippet capped at 250 chars at a word boundary; tracking params and fragments stripped from URLs and duplicate URLs dropped within and across a batched call's queries) is cached for 10 minutes by query, and `web_fetch` for 5 minutes by URL. Fetched pages are reduced to the main article as markdown (nav, footer and scripts dropped; external links kept up to 25) and capped at about 8k tokens. A search is prefetched before the agent only for open-web phrasings such as reviews, forums, `vs`, alternatives; it is skipped when the message is about your own notes, sheets or spend, because prefetched web text marks the turn untrusted and blocks its writes.
+`web_search` (Kagi first, then Brave; 8 results, each snippet capped at 250 chars at a word boundary; tracking params and fragments stripped from URLs and duplicate URLs dropped within and across a batched call's queries) is cached for 10 minutes by query, and `web_fetch` for 5 minutes by URL. Fetched pages are reduced to the main article as markdown (nav, footer and scripts dropped; external links kept up to 25) and capped at about 8k tokens. A search is prefetched before the agent only for open-web phrasings such as reviews, forums, `vs`, alternatives; it is skipped when the message is about your own notes, sheets or spend, because prefetched web text marks the turn untrusted and blocks its writes.
 
 ## When Claude is unavailable
 

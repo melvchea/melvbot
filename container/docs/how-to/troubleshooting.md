@@ -14,7 +14,7 @@ docker logs --tail 100 melvbot
 | Voice fails | Missing `GROQ_API_KEY`. |
 | Photo fails | Claude login/quota problem; check `melvbot doctor`. |
 | Video fails | Missing `MINIMAX_API_KEY`. |
-| No web results | Kagi, Brave and Firecrawl search all failed, are unavailable or have no key (doctor `web search` check). Pages go Firecrawl, then Bright Data (`web_fetch: ... trying next` lines show each step), then in-process. |
+| No web results | Kagi and Brave search both failed, are unavailable or have no key (doctor `web search` check). Pages go Firecrawl, then Bright Data (`web_fetch: ... trying next` lines show each step), then in-process. |
 | Can only copy a whole reply, not some words (Android) | Not a bot setting; replies are plain text. In Telegram for Android, long-press once to select the message, then long-press a word again to get selection handles; drag them and tap Copy. Close the keyboard first, or Copy won't show. Table replies are sent as rich messages and may not allow partial selection. |
 
 The daily maintenance run also probes the Claude login and reports failures.

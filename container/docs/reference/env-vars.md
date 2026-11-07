@@ -12,7 +12,7 @@ Set in `/etc/melvbot/melvbot.env` (root-only) and injected by Docker Compose.
 | `FIRECRAWL_API_KEY` | Firecrawl key: last web search provider (after Kagi and Brave), and the first page-read step (`/v2/scrape`). |
 | `BRIGHTDATA_API_KEY` | Bright Data Web Unlocker key: second page-read step after Firecrawl (HTML run through the in-process extractor). Unset skips it. |
 | `BRIGHTDATA_ZONE` | Bright Data Web Unlocker zone name sent with each `/request` call. |
-| `SEARCH_PROVIDERS` | Comma list in order from `kagi`, `brave`, `firecrawl` (default `kagi,brave,firecrawl`). |
+| `SEARCH_PROVIDERS` | Comma list in order from `kagi`, `brave`, `firecrawl` (default `kagi,brave`; add `firecrawl` only to use it for search). |
 | `BRAVE_SEARCH_API_KEY` | Brave Search key, second web search provider (after Kagi). Unset skips Brave. |
 | `BRAVE_COUNTRY` | Country code sent to Brave (default `ALL`; Brave rejects `SG`). |
 | `BRAVE_MONTHLY_QUOTA` | Brave calls budgeted per month (default `1000`, the free $5 credit). Older name for `WEB_QUOTA_BRAVE`, which wins when both are set. |
