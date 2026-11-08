@@ -33,7 +33,7 @@ export async function listSpend(options: {
       (row) =>
         row.owner === card.owner &&
         row.card === card.card &&
-        row.cycle_start === cycleStart &&
+        spendCycle(card, String(row.spent_on)).cycleStart === cycleStart &&
         !row.voided_at,
     )
     .map((row) => {

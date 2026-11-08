@@ -67,6 +67,33 @@ test("listSpend returns the cycle's entries oldest date first", async () => {
   }
 });
 
+// Bug: rows saved with a legacy 27th-26th cycle_start were missed by the calendar-month total.
+test("listSpend totals by spent_on calendar month, ignoring a stale stored cycle_start", async () => {
+  const { restore: restoreEnv } = googleHome();
+  const head = ["id", "owner", "card", "spent_on", "merchant", "amount", "cycle_start", "cycle_end", "source_ref", "voided_at"];
+  const row = (id: string, spent: string, start: string, end: string) => [id, "owner1", "card1", spent, "Shop", "10.00", start, end, "", ""];
+  const tabs: Record<string, string[][]> = {
+    Transactions: [
+      head,
+      row("1", "2026-11-03", "2026-11-01", "2026-11-30"),
+      row("2", "2026-11-05", "2026-10-27", "2026-11-26"),
+      row("3", "2026-10-31", "2026-10-27", "2026-11-26"),
+    ],
+    Rules: [["key", "value"], ["target", "500.00"]],
+  };
+  const stub = stubFetch((url) => {
+    const tab = decodeURIComponent(/values\/([^?]+)/.exec(url.href)![1]).replace(/'/g, "");
+    return { ok: true, status: 200, json: async () => ({ values: tabs[tab] }) } as Response;
+  });
+  try {
+    const out = await listSpend({ owner: "owner1", card: "card1", cycleDate: "2026-11-08" });
+    assert.equal(out.total, "20.00");
+  } finally {
+    stub.restore();
+    restoreEnv();
+  }
+});
+
 // Bug: Transactions had no voided_at header, so void wrote an unnamed column and the row stayed listed.
 test("spendDedupeKey treats merchant aliases as the same key; findNearDuplicateSpend flags same date and amount with similar merchant", () => {
   const a = spendDedupeKey({
