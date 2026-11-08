@@ -41,7 +41,12 @@ const sentTo = (address: string, hoursAgo: number, conversationId = "x"): SentMe
 });
 
 test("direct question from known contact is included with tags", () => {
-  const m = mail("k", { subject: "Report", bodyPreview: "Could you send it by Friday?", hoursAgo: 80 });
+  const m = mail("k", { subject: "Report", bodyPreview: "Could you send it by Friday?", hoursAgo: 5 });
   const text = digest([m], [sentTo("k@person.com", 24 * 20, "old")]);
-  assert.match(text, /Reply needed \(1\):\n• Person k — Report · 3d · direct, question, due Fri, known/);
+  assert.match(text, /Reply needed \(1\):\n• Person k — Report · 5h · direct, question, due Fri, known/);
+});
+
+test("thread from a previous day is not highlighted", () => {
+  const m = mail("o", { subject: "Old", bodyPreview: "Could you reply?", hoursAgo: 30 });
+  assert.doesNotMatch(digest([m]), /Reply needed/);
 });

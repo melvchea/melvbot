@@ -244,11 +244,14 @@ function waitingLabel(since: Date, now: Date): string {
   return hours >= 48 ? `${Math.floor(hours / 24)}d` : hours >= 1 ? `${hours}h` : "<1h";
 }
 
+const sgtDay = (ms: number): string =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Singapore" }).format(new Date(ms));
+
 type ReplyItem = { line: string; receivedMs: number; conversationId: string };
 
 /**
  * Threads whose latest message is inbound, not yet answered from Sent Items,
- * and score at least REPLY_THRESHOLD. Oldest waiting first.
+ * and score at least REPLY_THRESHOLD. Only mail received today (SGT); oldest first.
  */
 export function replyNeededItems(ctx: ReplyContext, now: Date): ReplyItem[] {
   const me = ctx.me.trim().toLowerCase();
@@ -281,6 +284,9 @@ export function replyNeededItems(ctx: ReplyContext, now: Date): ReplyItem[] {
       continue;
     }
     const receivedMs = Date.parse(latest.receivedDateTime ?? "");
+    if (sgtDay(receivedMs) !== sgtDay(now.getTime())) {
+      continue; // only today's mail (SGT), earlier days are not highlighted
+    }
     if ((lastSent.get(conversationId) ?? 0) >= receivedMs) {
       continue;
     }
