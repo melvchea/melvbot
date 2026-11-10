@@ -6,7 +6,7 @@ always: false
 
 # Shopee SG vouchers
 
-On-demand recap, plus **Shopee Vouchers AM** (`15 7 * * *`, 7:15am SGT) and **Shopee Vouchers PM** (`45 22 * * *`, 10:45pm SGT). Both fire daily and check Suitesmile for a dated voucher window this month (plus x.x eve/day); do not assume 15th/25th. The agent runs only when the check is yes. The job prompt is the `shopee` kind row in `cron_jobs.db`, so do not duplicate it.
+On-demand recap, plus **Shopee Vouchers AM** (`15 7 * * *`, 7:15am SGT) and **Shopee Vouchers PM** (`45 20 * * *`, 8:45pm SGT). Both fire daily with no code gate and check Suitesmile for a dated voucher window this month (plus x.x eve/day); do not assume 15th/25th. The job prompt is the `shopee` kind row in `cron_jobs.db`, so do not duplicate it.
 
 `today` is today in SGT. Confirm the current Asia/Singapore date before expiry/upcoming filters and the recap header.
 

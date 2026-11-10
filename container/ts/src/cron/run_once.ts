@@ -46,7 +46,6 @@ import {
   KIND_IDLE_RESET,
   KIND_MAINT_REPORT,
   KIND_OUTLOOK_DIGEST,
-  KIND_SHOPEE,
   KNOWN_KINDS,
   claimRunSlot,
   getJob,
@@ -337,29 +336,6 @@ function runCronScript(script: string): string {
   return (completed.stdout ?? "").trim();
 }
 
-function isShopeeAlertDay(now = new Date()): boolean {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Singapore",
-    month: "numeric",
-    day: "numeric",
-  }).formatToParts(now);
-  const month = Number(parts.find((part) => part.type === "month")?.value);
-  const day = Number(parts.find((part) => part.type === "day")?.value);
-  if (month === day) {
-    return true;
-  }
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const next = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Singapore",
-    month: "numeric",
-    day: "numeric",
-  }).formatToParts(tomorrow);
-  return (
-    Number(next.find((part) => part.type === "month")?.value) ===
-    Number(next.find((part) => part.type === "day")?.value)
-  );
-}
-
 /** Calendar (primary + family) and due/overdue tasks, pre-formatted by src/reminders/format.ts. */
 async function googlePrefetch(): Promise<{ text: string; tasks: DueTask[]; calendarLines: string[]; taskLines: string[] }> {
   if (!existsSync(googleTokenPath())) {
@@ -535,9 +511,6 @@ async function executeJob(job: CronJob): Promise<string> {
     if (failure !== null) {
       await telegramNotify(failure);
     }
-    return SILENT_OUTPUT;
-  }
-  if (kind === KIND_SHOPEE && !isShopeeAlertDay()) {
     return SILENT_OUTPUT;
   }
   if (kind === KIND_AFTERNOON_WEATHER) {
