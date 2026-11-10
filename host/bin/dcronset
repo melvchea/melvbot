@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+"""Set the schedule of a non-agent cron job (shopee, digests, ...) in cron_jobs.db.
+usage: dcronset <job-id> "<5-field cron>"
+`melvbot cron update` only edits agent jobs; this sets schedule and on_calendar
+together, after a backup, so melvbot-timer-sync.path reinstalls the timers."""
+import sqlite3
+import sys
+
+DB = "/home/melvbot/melvbot-workspace/melvbot-data/config/cron_jobs.db"
+
+if len(sys.argv) != 3 or len(sys.argv[2].split()) != 5:
+    sys.exit(__doc__)
+job_id, schedule = sys.argv[1], " ".join(sys.argv[2].split())
+con = sqlite3.connect(DB, timeout=5)
+row = con.execute("SELECT name, schedule FROM cron_jobs WHERE id=?", (job_id,)).fetchone()
+if row is None:
+    sys.exit(f"dcronset: no job {job_id}")
+bak = sqlite3.connect(DB + ".bak")
+con.backup(bak)
+bak.close()
+con.execute("UPDATE cron_jobs SET schedule=?, on_calendar=? WHERE id=?", (schedule, schedule, job_id))
+con.commit()
+print(f"{row[0]}: {row[1]} -> {schedule} (backup {DB}.bak)")
