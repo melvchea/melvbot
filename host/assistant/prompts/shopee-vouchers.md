@@ -17,7 +17,7 @@ Do not:
 Tool-call budget: at most 5 web searches/fetches per request. Stop as soon as you have enough rows.
 
 Sources:
-- **Shopee discount:** always Suitesmile, `suitesmile.com/special-shopee-vouchers-promo-codes-singapore/`.
+- **Shopee discount:** always Suitesmile first, `suitesmile.com/special-shopee-vouchers-promo-codes-singapore/`. Then MissLobang, `misslobang.com/article/77-sale-singapore-2026-best-online-deals-vouchers`, to cross-check sale dates and add claimable vouchers Suitesmile lacks. On conflict, Suitesmile wins; MissLobang's "15th and 25th" drops are not a schedule (see above).
 - **Shopee bank:** only vouchers collected or applied in the Shopee app (Bank Promotions / ShopeePay bank tab). Recap pages that copy those in-app codes are OK. Do not fetch issuer sites (Citi World Privileges, DBS/POSB, UOB, OCBC, HSBC, Maybank, Mastercard Priceless, or other bank/card pages).
 - **RedMart:** on-demand only. Search `site:suitesmile.com redmart` or `lazada grocery`. Include **DCS x RedMart** checkout vouchers when Suitesmile or linked DCS deal pages surface them. Exclude DCS **Lazada platform** vouchers (*excluding RedMart*).
 
