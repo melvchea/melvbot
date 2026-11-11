@@ -5,7 +5,7 @@ import { ProviderHttpError } from "./providers/http_error.js";
  * Monthly call counters for the paid-credit page providers. A provider is only skipped once it is at its
  * limit or answered 402/429 (until the month ends); nothing is held back early to save credits.
  */
-export const WEB_QUOTA_DEFAULTS = { firecrawl: 500, brightdata: 5000 } as const;
+export const WEB_QUOTA_DEFAULTS = { firecrawl: 1000, brightdata: 5000 } as const;
 export type QuotaProvider = keyof typeof WEB_QUOTA_DEFAULTS;
 const SGT_OFFSET_MS = 8 * 3600_000;
 
@@ -40,15 +40,16 @@ export function webQuotaOk(provider: QuotaProvider, now = new Date()): boolean {
   }
 }
 
-/** Runs one request to `provider`, counting it; a 402/429 answer marks the provider exhausted for the month. */
+/** Runs one request to `provider`, counting it only when it succeeds (both bill successful requests only); a 402/429 answer marks the provider exhausted for the month. */
 export async function withWebQuota<T>(provider: QuotaProvider, call: () => Promise<T>, now = new Date()): Promise<T> {
   if (!webQuotaOk(provider, now)) {
     throw new Error(`${provider} monthly quota used`);
   }
   const month = sgtMonth(now);
-  record(() => recordWebQuota(month, provider, 1, false));
   try {
-    return await call();
+    const result = await call();
+    record(() => recordWebQuota(month, provider, 1, false));
+    return result;
   } catch (error) {
     if (error instanceof ProviderHttpError && (error.status === 402 || error.status === 429)) {
       record(() => recordWebQuota(month, provider, 0, true));

@@ -16,8 +16,8 @@ Set in `/etc/melvbot/melvbot.env` (root-only) and injected by Docker Compose.
 | `BRAVE_SEARCH_API_KEY` | Brave Search key, second web search provider (after Kagi). Unset skips Brave. |
 | `BRAVE_COUNTRY` | Country code sent to Brave (default `ALL`; Brave rejects `SG`). |
 | `BRAVE_MONTHLY_QUOTA` | Brave calls budgeted per month (default `1000`, the free $5 credit). Older name for `WEB_QUOTA_BRAVE`, which wins when both are set. |
-| `WEB_QUOTA_FIRECRAWL` | Firecrawl calls per month before it is skipped for the rest of the month (default `500`). Counted for search and scrape; a 402 or 429 answer also skips it until month end. |
-| `WEB_QUOTA_BRIGHTDATA` | Bright Data calls per month before it is skipped (default `5000`). A 402 or 429 answer also skips it until month end. |
+| `WEB_QUOTA_FIRECRAWL` | Firecrawl calls per month before it is skipped for the rest of the month (default `1000`, the Free plan's credits). Only successful search and scrape calls count; a 402 or 429 answer also skips it until month end. |
+| `WEB_QUOTA_BRIGHTDATA` | Bright Data calls per month before it is skipped (default `5000`). Only successful calls count. A 402 or 429 answer also skips it until month end. |
 | `WEB_QUOTA_BRAVE` | Brave limit per month (default `1000`), same as `BRAVE_MONTHLY_QUOTA`. |
 
 | `GOOGLE_CLOUD_TTS_API_KEY` | Spoken replies. |
