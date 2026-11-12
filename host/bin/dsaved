@@ -24,6 +24,9 @@ fi
 if [[ $review == 1 ]]; then
   echo "== \$ per commit =="; "$0" --outcome "$days"
   echo; echo "== top 5 sessions (! = review) =="; "$0" --sessions "$days" | sed -n '1,7p'
+  echo; echo "== read-gate denies (dumps kept out of context) =="
+  awk -F'\t' -v s="$(date -d "$days days ago" +%F)" '$1 >= s { n++; b += $2 } END { printf "%d denies, %d KB kept out of context\n", n, b / 1024 }' \
+    "${XDG_STATE_HOME:-$HOME/.local/state}/melvbot/read-gate.tsv" 2>/dev/null || echo "0 denies"
   exit 0
 fi
 since=${since_date:-$(date -d "$days days ago" +%F)}

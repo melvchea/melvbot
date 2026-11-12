@@ -91,6 +91,15 @@
             "command": "$HOME/melvbot-storage/host/libexec/agent-gate"
           }
         ]
+      },
+      {
+        "matcher": "Read|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/melvbot-storage/host/libexec/read-gate"
+          }
+        ]
       }
     ],
     "SubagentStop": [

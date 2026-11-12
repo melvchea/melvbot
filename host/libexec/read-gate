@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# PreToolUse hook (Read|Bash): deny context dumps and name the narrower call. Denies a full-file Read
+# (no offset/limit/pages) over 16 KB, `cat FILE...` over 16 KB with no pipe/redirect, and curl/wget
+# with no output flag/pipe/redirect. Image and PDF reads pass; `allow_large: true` is the explicit override.
+in=$(cat)
+cap=16384
+log=${XDG_STATE_HOME:-$HOME/.local/state}/melvbot/read-gate.tsv
+deny() { mkdir -p "${log%/*}" 2>/dev/null; printf '%s\t%s\n' "$(date +%F)" "${2:-0}" >>"$log" 2>/dev/null; jq -n --arg r "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'; exit 0; }
+cwd=$(jq -r '.cwd // ""' <<<"$in")
+size() { local p=${1/#\~/$HOME}; [[ $p == /* ]] || p=$cwd/$p; [[ -f $p ]] && stat -c %s "$p" || echo 0; }
+
+case $(jq -r '.tool_name // ""' <<<"$in") in
+Read)
+  jq -e '.tool_input | (.offset // .limit // .pages // .allow_large) != null' <<<"$in" >/dev/null && exit 0
+  f=$(jq -r '.tool_input.file_path // ""' <<<"$in")
+  [[ ${f,,} =~ \.(png|jpe?g|gif|webp|pdf)$ ]] && exit 0
+  s=$(size "$f")
+  [ "$s" -gt "$cap" ] && deny "$f is $s B (over $cap): use rg -n PATTERN, sed -n 'A,Bp', or Read with offset/limit." "$s"
+  ;;
+Bash)
+  cmd=$(jq -r '.tool_input.command // ""' <<<"$in")
+  if [[ $cmd =~ ^[[:space:]]*cat[[:space:]]+([^\|\&\;\<\>\$\`]+)$ ]]; then
+    for f in ${BASH_REMATCH[1]}; do
+      f=${f//[\"\']/}
+      s=$(size "$f")
+      [ "$s" -gt "$cap" ] && deny "cat $f is $s B (over $cap): use rg -n PATTERN, sed -n 'A,Bp', head or jq." "$s"
+    done
+  fi
+  if [[ $cmd =~ ^[[:space:]]*(curl|wget)[[:space:]] ]] && ! [[ $cmd =~ [\|\>]|[[:space:]]-[a-zA-Z]*[oOI][[:space:]]|--(output|head) ]]; then
+    deny "Unbounded ${BASH_REMATCH[1]} dumps the body into context: pipe to jq/head/rg or write it to a file with -o under \$TMPDIR."
+  fi
+  ;;
+esac
+exit 0
