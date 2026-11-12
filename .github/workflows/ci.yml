@@ -152,14 +152,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
+      - name: Image inputs changed
+        id: changed
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # Build on any doubt (no base, unknown commit, diff error).
+          if files=$(git diff --name-only "$BASE" HEAD 2>/dev/null) && [ -n "$BASE" ]; then
+            if ! printf '%s\n' "$files" | grep -Ev '^(container/docs/|.*\.md$)' | grep -q '^container/'; then
+              echo "build=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "build=true" >> "$GITHUB_OUTPUT"
+
       - name: Build
+        if: steps.changed.outputs.build == 'true'
         run: |
           docker buildx create --use --buildkitd-flags '--allow-insecure-entitlement network.host'
           docker buildx build --allow network.host --load -f container/Dockerfile.node -t melvbot-ts:ci container
 
       - name: Trivy image
+        if: steps.changed.outputs.build == 'true'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
