@@ -12,8 +12,8 @@
     "doctor": "node --import tsx src/doctor.ts"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.3",
-    "@types/node": "^26.6.5",
+    "@biomejs/biome": "2.6.4",
+    "@types/node": "^26.6.6",
     "fast-check": "^4.10.2",
     "tsx": "^4.19.0",
     "typescript": "^7.0.2"
