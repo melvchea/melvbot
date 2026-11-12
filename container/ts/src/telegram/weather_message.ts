@@ -141,6 +141,10 @@ export function maintMessageStatePath(): string {
   return path.join(path.dirname(weatherMessageStatePath()), "maint-messages.json");
 }
 
+export function shopeeMessageStatePath(): string {
+  return path.join(path.dirname(weatherMessageStatePath()), "shopee-messages.json");
+}
+
 export function outlookMessageStatePath(): string {
   return path.join(path.dirname(weatherMessageStatePath()), "outlook-messages.json");
 }

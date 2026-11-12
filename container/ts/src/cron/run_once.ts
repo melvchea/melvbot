@@ -29,7 +29,7 @@ import {
   sgtHour,
   shouldSendWeather,
 } from "../telegram/weather.js";
-import { dcaMessageStatePath, maintMessageStatePath, morningMessageStatePath, outlookMessageStatePath, publishReplacingMessage, publishWeatherMessage, readWeatherWatch, replacePriorMessages, writeWeatherWatch } from "../telegram/weather_message.js";
+import { dcaMessageStatePath, maintMessageStatePath, morningMessageStatePath, outlookMessageStatePath, publishReplacingMessage, publishWeatherMessage, readWeatherWatch, replacePriorMessages, shopeeMessageStatePath, writeWeatherWatch } from "../telegram/weather_message.js";
 import { latestSlotToday, slotKey } from "./due.js";
 import { renderMorningUpdate, splitMorningUpdate } from "./morning_update.js";
 import { formatMaintReportMessages, TELEGRAM_VISIBLE_LIMIT } from "./maint_report.js";
@@ -46,6 +46,7 @@ import {
   KIND_IDLE_RESET,
   KIND_MAINT_REPORT,
   KIND_OUTLOOK_DIGEST,
+  KIND_SHOPEE,
   KNOWN_KINDS,
   claimRunSlot,
   getJob,
@@ -661,6 +662,8 @@ async function executeJob(job: CronJob): Promise<string> {
       if (job.name.startsWith("DCA Market Update")) {
         const header = dcaHeader(new Date());
         await publishDcaTelegram(`${header}\n\n${withDcaBondLine(withDcaStiLine(cleanDcaBody(text), await fetchYahooQuote("^STI")), await fetchYahooQuote("^TNX"))}`);
+      } else if (kind === KIND_SHOPEE) {
+        await replaceRecorded([await telegramNotify(text)], shopeeMessageStatePath());
       } else {
         await telegramNotify(text);
       }
