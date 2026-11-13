@@ -124,10 +124,10 @@ jobs:
       - name: Wait for CodeQL of this commit (push only)
         if: github.event_name == 'push'
         run: |
-          for _ in $(seq 40); do
+          for _ in $(seq 120); do
             s=$(gh run list --workflow CodeQL --commit "$SHA" --json status --jq '.[0].status // "none"')
             [ "$s" = completed ] && break
-            sleep 10
+            sleep 3
           done
 
       - name: Open alerts must be zero
