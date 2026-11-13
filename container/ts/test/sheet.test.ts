@@ -94,7 +94,6 @@ test("listSpend totals by spent_on calendar month, ignoring a stale stored cycle
   }
 });
 
-// Bug: Transactions had no voided_at header, so void wrote an unnamed column and the row stayed listed.
 test("spendDedupeKey treats merchant aliases as the same key; findNearDuplicateSpend flags same date and amount with similar merchant", () => {
   const a = spendDedupeKey({
     owner: "owner1",

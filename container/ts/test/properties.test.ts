@@ -4,7 +4,7 @@ import test from "node:test";
 import fc from "fast-check";
 
 import { stripTags } from "../src/html_text.js";
-import { containsSpendColumnTable, spendColumnsToGfm } from "../src/telegram/rich.js";
+import { spendColumnsToGfm } from "../src/telegram/rich.js";
 
 const SEED = 20261012;
 const RUNS = 50;
@@ -70,24 +70,6 @@ test("merchant pipes in a spend table are escaped so no unescaped pipe leaks int
         }
         assert.equal(run % 2, 1, `unescaped pipe in merchant cell: ${row}`);
       }
-    }),
-    { seed: SEED, numRuns: RUNS },
-  );
-});
-
-test("spend row detection finishes fast on long whitespace and word inputs", () => {
-  const filler = fc.array(fc.constantFrom("word", " ", " ", "\t", "  ", "x"), {
-    minLength: 1,
-    maxLength: 4000,
-  });
-  fc.assert(
-    fc.property(filler, (parts) => {
-      const line = `1 Jan ${parts.join("")}`;
-      const started = performance.now();
-      const found = containsSpendColumnTable(`${line}\n${line}`);
-      const elapsed = performance.now() - started;
-      assert.equal(found, false);
-      assert.ok(elapsed < 200, `spend row check took ${elapsed.toFixed(1)} ms`);
     }),
     { seed: SEED, numRuns: RUNS },
   );

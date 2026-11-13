@@ -33,12 +33,13 @@ beforeEach(() => {
 });
 // Bug: example.com was resolved via real DNS, so fetch tests failed offline (sandboxed dverify blocked ddeploy).
 // Unlisted hosts throw instead of falling through to real DNS.
-setHostLookupForTests((async (host: string) => {
+const fixtureLookup = (async (host: string) => {
   if (host === "example.com" || host.endsWith(".example")) {
     return [{ address: "93.184.215.14", family: 4 }];
   }
   throw new Error(`unmocked DNS lookup: ${host}`);
-}) as typeof lookup);
+}) as typeof lookup;
+setHostLookupForTests(fixtureLookup);
 
 // Bug: the host was checked once, then fetch() resolved it again, so DNS rebinding could reach a private IP.
 test("pinnedLookup refuses a private address at connect time and passes public ones", async () => {
@@ -53,12 +54,7 @@ test("pinnedLookup refuses a private address at connect time and passes public o
   try {
     assert.match((await run("rebind.example")).err?.message ?? "", /private address/);
   } finally {
-    setHostLookupForTests((async (host: string) => {
-      if (host === "example.com" || host.endsWith(".example")) {
-        return [{ address: "93.184.215.14", family: 4 }];
-      }
-      throw new Error(`unmocked DNS lookup: ${host}`);
-    }) as typeof lookup);
+    setHostLookupForTests(fixtureLookup);
   }
 });
 

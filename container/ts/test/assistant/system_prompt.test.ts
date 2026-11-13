@@ -3,6 +3,8 @@ import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
+import { setMelvbotEnv } from "../helpers/env.js";
+import { stubFetch } from "../helpers/fetch.js";
 import { tempDir } from "../helpers/temp.js";
 import { writePrompt } from "../helpers/prompts.js";
 
@@ -39,9 +41,8 @@ function installFixtures(notes: NoteFixture[]): {
   writeFileSync(path.join(dir, "melvbot.toml"), `[notes]\n${notesTable}\n`);
   writeFileSync(path.join(dir, "google_token.json"), JSON.stringify({ token: "t" }));
   const docById = new Map(notes.map((note) => [note.docId, note]));
-  const prevFetch = globalThis.fetch;
-  globalThis.fetch = (async (url: string | URL) => {
-    const href = String(url);
+  const stub = stubFetch((url) => {
+    const href = url.href;
     if (href.includes("/batch/drive")) {
       throw new Error("Drive batch endpoint must not be used; list notes with per-file reads");
     }
@@ -52,45 +53,37 @@ function installFixtures(notes: NoteFixture[]): {
       throw new Error(`unexpected fetch: ${href}`);
     }
     if (href.includes("drive/v3/files/")) {
-      return {
-        ok: true,
-        text: async () =>
-          JSON.stringify({
-            id: note.docId,
-            name: note.title,
-            trashed: false,
-            createdTime: note.createdAt,
-            modifiedTime: note.updatedAt,
-            appProperties: {
-              tags: JSON.stringify(note.tags),
-              created_at: note.createdAt,
-              use_when: note.useWhen ?? "",
-            },
-          }),
-      } as Response;
+      return new Response(
+        JSON.stringify({
+          id: note.docId,
+          name: note.title,
+          trashed: false,
+          createdTime: note.createdAt,
+          modifiedTime: note.updatedAt,
+          appProperties: {
+            tags: JSON.stringify(note.tags),
+            created_at: note.createdAt,
+            use_when: note.useWhen ?? "",
+          },
+        }),
+      );
     }
     if (href.includes("docs.googleapis.com/v1/documents/")) {
-      return {
-        ok: true,
-        text: async () =>
-          JSON.stringify({
-            documentId: note.docId,
-            body: {
-              content: [
-                { endIndex: 5, paragraph: { elements: [{ textRun: { content: noteDocText(note) } }] } },
-              ],
-            },
-          }),
-      } as Response;
+      return new Response(
+        JSON.stringify({
+          documentId: note.docId,
+          body: { content: [{ endIndex: 5, paragraph: { elements: [{ textRun: { content: noteDocText(note) } }] } }] },
+        }),
+      );
     }
     throw new Error(`unexpected fetch: ${href}`);
-  }) as typeof fetch;
-  process.env.MELVBOT_TOML = path.join(dir, "melvbot.toml");
-  process.env.MELVBOT_GOOGLE_HOME = dir;
+  });
+  const restoreEnv = setMelvbotEnv({ MELVBOT_TOML: path.join(dir, "melvbot.toml"), MELVBOT_GOOGLE_HOME: dir });
   return {
     dir,
     cleanup: () => {
-      globalThis.fetch = prevFetch;
+      stub.restore();
+      restoreEnv();
       clearAboutMeCache();
       clearHouseRulesCache();
       clearNotesIndexCache();
