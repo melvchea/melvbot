@@ -485,6 +485,15 @@ export function countEpisodes(dbPath = conversationDbPath()): number {
   }
 }
 
+export function renameOfferDismissals(from: string, to: string, dbPath = conversationDbPath()): void {
+  const db = openDb(dbPath);
+  try {
+    db.prepare("UPDATE offer_dismissals SET slug = ? WHERE slug = ?").run(to, from);
+  } finally {
+    db.close();
+  }
+}
+
 export function recordOfferDismissal(slug: string, section: string, dbPath = conversationDbPath(), now = Date.now()): void {
   const db = openDb(dbPath);
   try {

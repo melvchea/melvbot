@@ -1,6 +1,6 @@
 import { loadNotesToml } from "../sheet/toml.js";
 import { addNote, getNote, restoreNote, trashCreatedNote } from "../note/notes.js";
-import { applyNoteRename } from "../note/note_prose.js";
+import { applyNoteRename, applyNoteSlugRename } from "../note/note_prose.js";
 import { latestUndoableChange, markChangeUndone } from "./change_log.js";
 
 type NoteSnapshot = {
@@ -47,6 +47,20 @@ export async function undoLastChange(chatKey: string | null = process.env.MELVBO
     const renamed = await applyNoteRename(before.slug, before.title);
     if (!renamed.ok) {
       return { undone: false, reason: renamed.message };
+    }
+    markChangeUndone(entry.id);
+    return { undone: true, action: entry.action, target: entry.target };
+  }
+
+  if (entry.action === "note rename-slug") {
+    const before = parseNoteSnapshot(entry.beforeJson);
+    const after = parseNoteSnapshot(entry.afterJson);
+    if (!before || !after) {
+      return { undone: false, reason: `change ${entry.id} has no slug snapshot` };
+    }
+    const moved = applyNoteSlugRename(after.slug, before.slug);
+    if (!moved.ok) {
+      return { undone: false, reason: moved.message };
     }
     markChangeUndone(entry.id);
     return { undone: true, action: entry.action, target: entry.target };

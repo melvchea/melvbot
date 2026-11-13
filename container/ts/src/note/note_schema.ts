@@ -14,7 +14,11 @@ const NOTE_MONEY_RE = /(?:(?:S\$|\$|SGD|USD)\s?\d[\d,]*(?:\.\d+)?|\d[\d,]*(?:\.\
 const NOTE_SPEND_VERB_RE =
   /\b(?:paid|spent|bought|purchased|charged|refunded|topped up|transferred|reimbursed|withdrew)\b/i;
 const NOTE_SPEND_LINE_RE = /^.*$/gm;
-const SPEND_LINE_EXEMPT_SLUGS: ReadonlySet<string> = new Set(["dollar-cost-averaging"]);
+/** The DCA plan Note; the stock-market prefetch and the DCA cron read it by this slug. */
+export const DCA_SLUG = "dollar-cost-avg";
+/** Slugs code or prompts depend on; `note rename-slug` refuses to move them. */
+export const RESERVED_NOTE_SLUGS: ReadonlySet<string> = new Set([...PROCEDURE_NOTE_SLUGS, "about-me", DCA_SLUG]);
+const SPEND_LINE_EXEMPT_SLUGS: ReadonlySet<string> = new Set([DCA_SLUG]);
 
 /** Lines that hold both a money amount and a spend verb. */
 function spendLines(text: string): string[] {

@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { dcaNoteBlock, fetchYahooQuotes, prefetchRule } from "../../src/assistant/rule_prefetch.js";
 
 test("DCA note block carries revision_id so the cron's full-body write can pass --expect-rev", () => {
-  assert.match(dcaNoteBlock({ body: "Plan", revision_id: "rev42" }), /^<untrusted source="note">\n<note slug="dollar-cost-averaging" revision_id="rev42">\nPlan\n<\/note>\n<\/untrusted>$/);
+  assert.match(dcaNoteBlock({ body: "Plan", revision_id: "rev42" }), /^<untrusted source="note">\n<note slug="dollar-cost-avg" revision_id="rev42">\nPlan\n<\/note>\n<\/untrusted>$/);
 });
 
 test("prefetchRule injects the rule body and tolerates failing data fetches", async () => {

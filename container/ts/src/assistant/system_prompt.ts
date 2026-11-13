@@ -23,9 +23,9 @@ export const PROCEDURE_NOTE_MAX_CHARS = 800;
 const TIME_SENSITIVE_TAG = "time-sensitive";
 const MS_PER_DAY = 86_400_000;
 
-const NOTE_MUTATING_VERBS = new Set(["add", "delete", "append-history", "replace-section", "replace-text", "prune-before", "describe", "restore", "rename"]);
+const NOTE_MUTATING_VERBS = new Set(["add", "delete", "append-history", "replace-section", "replace-text", "prune-before", "describe", "restore", "rename", "rename-slug"]);
 /** Verbs that add, remove or retitle a note: the frozen prompt index must not list missing notes or miss new ones. */
-const NOTE_STRUCTURAL_VERBS = new Set(["add", "delete", "restore", "rename"]);
+const NOTE_STRUCTURAL_VERBS = new Set(["add", "delete", "restore", "rename", "rename-slug"]);
 
 type CacheEntry<T> = { value: T; fetchedAt: number };
 

@@ -6,7 +6,7 @@ always: false
 
 # Stock market snapshot
 
-This turn: if the message already includes prefetched web search results and the dollar-cost-averaging note, answer from them and do not call `web_search`, `web_fetch` or `note get` again unless a key figure is missing. Otherwise `web_search` for live levels, then `note get dollar-cost-averaging` for the plan verdict. Lead with the one-line takeaway, then scannable sections, not a wall of text.
+This turn: if the message already includes prefetched web search results and the dollar-cost-avg note, answer from them and do not call `web_search`, `web_fetch` or `note get` again unless a key figure is missing. Otherwise `web_search` for live levels, then `note get dollar-cost-avg` for the plan verdict. Lead with the one-line takeaway, then scannable sections, not a wall of text.
 
 ## Format (plain prose only)
 
@@ -28,7 +28,7 @@ Drivers:
 Singapore — [Day DD Mon]
 [1–2 short sentences: STI level, % move, vs recent high.]
 
-Your DCA plan (dollar-cost-averaging Note, DD Mon)
+Your DCA plan (dollar-cost-avg Note, DD Mon)
 [Verdict in plain language — keep monthly DCA / no deploy / SPYL paused / G3B unchanged / etc.]
 
 [Optional: last logged US close with S&P level and 10Y if different from live search.]

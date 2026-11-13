@@ -91,6 +91,10 @@ export function rewriteSheetTomlText(
       insertAt = index + 1;
     }
   }
+  // A file whose last line has no newline would otherwise swallow the new assignment onto that line.
+  if (insertAt > 0 && !lines[insertAt - 1].endsWith("\n")) {
+    lines[insertAt - 1] += "\n";
+  }
   lines.splice(insertAt, 0, assignment);
   return lines.join("");
 }

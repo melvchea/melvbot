@@ -1,5 +1,6 @@
 import { withTimeout } from "../telegram/intercept_log.js";
 import { getNote } from "../note/notes.js";
+import { DCA_SLUG } from "../note/note_schema.js";
 import { findRule, loadPromptCatalog } from "./prompt_files.js";
 import { redactForPrompt } from "./redact.js";
 import { formatWebSearchResults, webSearch } from "./tools.js";
@@ -132,10 +133,10 @@ const bondQuotes: DataFetcher = async () => (await fetchYahooQuotes([...INDEX_SY
 
 /** revision_id lets the cron's full-body write pass --expect-rev (the overwrite guard rejects it otherwise). */
 export function dcaNoteBlock(note: { body: string; revision_id: string }): string {
-  return `<untrusted source="note">\n<note slug="dollar-cost-averaging" revision_id="${note.revision_id}">\n${redactForPrompt(note.body)}\n</note>\n</untrusted>`;
+  return `<untrusted source="note">\n<note slug="${DCA_SLUG}" revision_id="${note.revision_id}">\n${redactForPrompt(note.body)}\n</note>\n</untrusted>`;
 }
 
-const dcaNote: DataFetcher = async () => dcaNoteBlock(await getNote("dollar-cost-averaging"));
+const dcaNote: DataFetcher = async () => dcaNoteBlock(await getNote(DCA_SLUG));
 
 const MARKET_LEAD = String.raw`(?:how(?:'s|'re| is| are| was| were| did| do| does)|what(?:'s| is| was| are)|check|show(?: me)?)`;
 const MARKET_TOPIC = String.raw`(?:the\s+)?(?:(?:stock\s+)?markets?|stocks|sti|s&p(?:\s*500)?|nasdaq|dow)`;

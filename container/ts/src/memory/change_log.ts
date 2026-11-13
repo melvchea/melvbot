@@ -70,7 +70,7 @@ function rowToEntry(row: Record<string, unknown>): ChangeLogEntry {
 }
 
 /** Actions `memory undo` can reverse; everything else in the log is history only. */
-const UNDOABLE_ACTIONS = ["note add", "note append-history", "note replace-section", "note replace-text", "note prune-before", "note delete", "note rename", "offer_save"];
+const UNDOABLE_ACTIONS = ["note add", "note append-history", "note replace-section", "note replace-text", "note prune-before", "note delete", "note rename", "note rename-slug", "offer_save"];
 
 export function recordChange(entry: {
   action: string;

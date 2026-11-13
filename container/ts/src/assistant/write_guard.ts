@@ -19,6 +19,7 @@ export const WRITE_ACTION_KEYWORDS: Readonly<Record<string, readonly string[]>> 
   "note replace-section": ["remember", "note", "save", "write down", "record", "update", "edit", "change"],
   offer_save: ["save", "remember", "keep", "go with", "settle", "decide", "pick"],
   "note rename": ["rename", "title", "call it", "name"],
+  "note rename-slug": ["rename", "slug", "amend", "change", "name"],
   "sheet rename": ["rename", "title", "call it", "name"],
   "note delete": ["delete", "remove", "forget"],
   "cron add": ["remind", "schedule", "cron", "recurring", "every"],

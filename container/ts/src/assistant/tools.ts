@@ -105,7 +105,7 @@ export function openWebResearchQuery(prompt: string): string | null {
 /** First-two-argument allowlist for melvbot_cli. */
 export const CLI_ALLOWLIST: Readonly<Record<string, ReadonlySet<string>>> = {
   sheet: new Set(["rules", "spend", "ev", "pin", "rename", "create"]),
-  note: new Set(["list", "get", "add", "describe", "delete", "restore", "append-history", "replace-section", "replace-text", "prune-before", "rename"]),
+  note: new Set(["list", "get", "add", "describe", "delete", "restore", "append-history", "replace-section", "replace-text", "prune-before", "rename", "rename-slug"]),
   memory: new Set(["undo"]),
   cron: new Set(["list", "get", "add", "update", "enable", "disable", "delete"]),
   google: new Set(["calendar", "tasks"]),

@@ -16,6 +16,7 @@ export const CONFIRM_REQUIRED_ACTIONS: ReadonlySet<string> = new Set([
   "sheet rules delete",
   "sheet create",
   "note delete",
+  "note rename-slug",
   "cron add",
   "cron update",
   "cron enable",

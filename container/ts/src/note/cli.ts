@@ -11,12 +11,13 @@ import {
   restoreNote,
 } from "./notes.js";
 import { loadNotesToml } from "../sheet/toml.js";
-import { applyNoteRename } from "./note_prose.js";
+import { applyNoteRename, applyNoteSlugRename } from "./note_prose.js";
 import { recordChange } from "../memory/change_log.js";
 
 const NOTE_USAGE =
-  "usage: melvbot note add|list|get|delete|restore|describe|append-history|replace-section|replace-text|prune-before|rename\n" +
+  "usage: melvbot note add|list|get|delete|restore|describe|append-history|replace-section|replace-text|prune-before|rename|rename-slug\n" +
   '       melvbot note rename <slug> <new title...>\n' +
+  '       melvbot note rename-slug <old-slug> <new-slug>\n' +
   '       melvbot note replace-section <slug> "## Heading" <text> --expect-rev <rev> [--bottom]\n' +
   '       melvbot note replace-text <slug> <old text> <new text> --expect-rev <rev>\n' +
   '       melvbot note prune-before <slug> <YYYY-MM-DD> --expect-rev <rev>\n';
@@ -152,6 +153,34 @@ export async function runNoteCli(args: string[]): Promise<number> {
         message: `Renamed Google Doc: ${before} → ${result.title}`,
         before_title: before,
         after_title: result.title,
+      });
+      return 0;
+    }
+    if (args[0] === "rename-slug") {
+      const [oldSlug, newSlug] = args.slice(1);
+      if (!oldSlug || !newSlug) {
+        return usage();
+      }
+      const result = applyNoteSlugRename(oldSlug, newSlug);
+      if (!result.ok) {
+        throw new Error(result.message);
+      }
+      const changeId = recordChange({
+        action: "note rename-slug",
+        target: oldSlug,
+        before: { slug: oldSlug },
+        after: { slug: newSlug },
+        chatKey: process.env.MELVBOT_CHAT_KEY ?? null,
+      });
+      writeJson({
+        receipt: true,
+        action: "note rename-slug",
+        target: oldSlug,
+        verified: true,
+        changeId,
+        message: `Renamed Note slug: ${oldSlug} → ${newSlug}`,
+        before_slug: oldSlug,
+        after_slug: newSlug,
       });
       return 0;
     }

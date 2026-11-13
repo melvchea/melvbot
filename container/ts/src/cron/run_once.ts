@@ -7,6 +7,7 @@ import { endPromptIdleSessions } from "../assistant/claude_session.js";
 import { dcaNoteBlock, fetchYahooQuote, prefetchRule, type Quote } from "../assistant/rule_prefetch.js";
 import { routedSearch } from "../assistant/search_router.js";
 import { getNote } from "../note/notes.js";
+import { DCA_SLUG } from "../note/note_schema.js";
 import { runBackup } from "./backup.js";
 import { titleLine } from "../telegram/title_line.js";
 import { runTurn } from "../assistant/turn.js";
@@ -469,9 +470,9 @@ export function parseDcaReply(reply: string): { telegram: string } | null {
 
 async function runDcaViaHaiku(prompt: string): Promise<{ ok: boolean; text: string }> {
   try {
-    const note = await getNote("dollar-cost-averaging");
+    const note = await getNote(DCA_SLUG);
     // The rule prefetch drops the note when its cached read fails; the plan verdict needs it.
-    if (!prompt.includes('<note slug="dollar-cost-averaging"')) {
+    if (!prompt.includes(`<note slug="${DCA_SLUG}"`)) {
       prompt = `${prompt}\n${dcaNoteBlock(note)}\n`;
     }
     // A malformed reply gets one retry instead of failing the run.
