@@ -365,6 +365,16 @@ async function checkOutlook(): Promise<DoctorCheck[]> {
 }
 
 export async function runDoctor(options: { probe?: boolean } = {}): Promise<{ checks: DoctorCheck[]; ok: boolean }> {
+  // Network-bound checks start together; results keep their order below.
+  // spendCardPolicy reads the live owner1/owner2 Rules tabs over the network,
+  // so it runs only under --probe, keeping a plain doctor (including the
+  // 3am run) network-free.
+  const [systemPrompt, outlook, probe, sheetRules] = await Promise.all([
+    checkSystemPrompt(),
+    checkOutlook(),
+    options.probe ? checkAssistantProviderProbe() : undefined,
+    options.probe ? checkSheetMoneyRules() : undefined,
+  ]);
   const checks: DoctorCheck[] = [
     checkSheets(),
     checkNotes(),
@@ -376,19 +386,15 @@ export async function runDoctor(options: { probe?: boolean } = {}): Promise<{ ch
     checkWindowStore(),
     checkConversationDbPermissions(),
     checkIdleResetCron(),
-    await checkSystemPrompt(),
+    systemPrompt,
     checkIgnoreCoverage(),
     checkNudgesToml(),
     checkMonthlyReviewJobId(),
     checkNudgesDb(),
-    ...(await checkOutlook()),
+    ...outlook,
   ];
-  if (options.probe) {
-    checks.push(await checkAssistantProviderProbe());
-    // spendCardPolicy reads the live owner1/owner2 Rules tabs over the network,
-    // so it runs only under --probe, keeping a plain doctor (including the
-    // 3am run) network-free.
-    checks.push(await checkSheetMoneyRules());
+  if (probe && sheetRules) {
+    checks.push(probe, sheetRules);
   }
   const ok = !checks.some((check) => check.status === "error");
   return { checks, ok };
