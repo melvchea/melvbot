@@ -10,7 +10,7 @@ services:
     image: melvbot-ts:latest
     container_name: melvbot
     restart: unless-stopped
-    stop_grace_period: 30s
+    stop_grace_period: 10s
     env_file:
       - /etc/melvbot/melvbot.env
     environment:
