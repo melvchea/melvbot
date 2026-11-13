@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 
 import { tempDbPath } from "../helpers/temp.js";
+import { ftsNotes, refreshNoteFts } from "../../src/assistant/recall_index.js";
 
 import {
   formatEpisode,
@@ -35,6 +36,34 @@ test("opening the conversation DB waits out a short write lock held by another p
   try {
     await new Promise<void>((resolve) => holder.stdout.once("data", () => resolve()));
     assert.doesNotThrow(() => latestEpisode("chat", dbPath));
+  } finally {
+    holder.kill();
+  }
+});
+
+// Bug: doctor and the daemon's startup both refreshed the note index at once; the deferred BEGIN failed
+// immediately with "database is locked" (a read-to-write upgrade ignores the busy timeout).
+test("refreshNoteFts waits for another process holding the write lock instead of failing", async () => {
+  const dbPath = tempDbPath();
+  latestEpisode("chat", dbPath);
+  refreshNoteFts([], dbPath); // creates note_fts
+  const holder = spawn(
+    process.execPath,
+    [
+      "-e",
+      `const { DatabaseSync } = require("node:sqlite");
+       const db = new DatabaseSync(process.argv[1]);
+       db.exec("BEGIN IMMEDIATE");
+       console.log("locked");
+       setTimeout(() => { db.exec("COMMIT"); }, 400);`,
+      dbPath,
+    ],
+    { stdio: ["ignore", "pipe", "inherit"] },
+  );
+  try {
+    await new Promise<void>((resolve) => holder.stdout.once("data", () => resolve()));
+    refreshNoteFts([{ slug: "a", title: "A", useWhen: "", tags: [], body: "body" }], dbPath);
+    assert.deepEqual(ftsNotes(["a"], dbPath).map((note) => note.body), ["body"]);
   } finally {
     holder.kill();
   }

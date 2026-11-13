@@ -36,7 +36,9 @@ export function refreshNoteFts(notes: readonly NoteFtsRow[], dbPath = conversati
   const db = openFtsDb(dbPath);
   try {
     ensureNoteFts(db);
-    db.exec("BEGIN");
+    // IMMEDIATE: a deferred BEGIN reads first, and a read-to-write upgrade fails at once with "database is locked"
+    // (the busy timeout is skipped) when another process, e.g. the daemon's own startup refresh, holds the write lock.
+    db.exec("BEGIN IMMEDIATE");
     try {
       db.exec("DELETE FROM note_fts");
       const insert = db.prepare(
