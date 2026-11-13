@@ -9,12 +9,13 @@ import {
   isAllowedCliCall,
   toolReadRule,
   webFetch,
+  WEB_FETCH_MAX_BYTES,
   isHostileHost,
   deprioritiseHostile,
   webSearchMany,
   webSearchRead,
 } from "../../src/assistant/tools.js";
-import { setHostLookupForTests } from "../../src/assistant/net_guard.js";
+import { pinnedLookup, setHostLookupForTests } from "../../src/assistant/net_guard.js";
 import { loadPromptCatalog } from "../../src/assistant/prompt_files.js";
 import { jsonResponse, withFetch, stubFetch } from "../helpers/fetch.js";
 import { tempDir, tempDbPath } from "../helpers/temp.js";
@@ -38,6 +39,28 @@ setHostLookupForTests((async (host: string) => {
   }
   throw new Error(`unmocked DNS lookup: ${host}`);
 }) as typeof lookup);
+
+// Bug: the host was checked once, then fetch() resolved it again, so DNS rebinding could reach a private IP.
+test("pinnedLookup refuses a private address at connect time and passes public ones", async () => {
+  const run = (host: string) =>
+    new Promise<{ err: Error | null; addrs?: { address: string }[] }>((resolve) =>
+      pinnedLookup(host, {}, (err, addrs) => resolve({ err, addrs })),
+    );
+  const ok = await run("example.com");
+  assert.equal(ok.err, null);
+  assert.equal(ok.addrs?.[0].address, "93.184.215.14");
+  setHostLookupForTests((async () => [{ address: "169.254.169.254", family: 4 }]) as unknown as typeof lookup);
+  try {
+    assert.match((await run("rebind.example")).err?.message ?? "", /private address/);
+  } finally {
+    setHostLookupForTests((async (host: string) => {
+      if (host === "example.com" || host.endsWith(".example")) {
+        return [{ address: "93.184.215.14", family: 4 }];
+      }
+      throw new Error(`unmocked DNS lookup: ${host}`);
+    }) as typeof lookup);
+  }
+});
 
 test("CLI and rule-file allowlists reject anything outside them", () => {
   assert.equal(isAllowedCliCall(["sheet", "rules"]), true);
@@ -175,6 +198,24 @@ test("webFetch: Firecrawl, then Bright Data HTML, then in-process", async (t) =>
       (url) => (url.host === "api.firecrawl.dev" || url.host === "api.brightdata.com" ? jsonResponse({ error: "boom" }, 500) : new Response("%PDF", { headers: { "content-type": "application/pdf" } })),
       async () => {
         await assert.rejects(webFetch("https://example.com/a.pdf"), /PDF.*not supported.*search snippet/);
+      },
+    );
+  });
+  await t.test("in-process fetch rejects binary types and caps the streamed body at WEB_FETCH_MAX_BYTES", async () => {
+    const failProviders = (url: URL) => url.host === "api.firecrawl.dev" || url.host === "api.brightdata.com";
+    clearWebCaches();
+    await withFetch(
+      (url) => (failProviders(url) ? jsonResponse({ error: "boom" }, 500) : new Response("PK", { headers: { "content-type": "application/zip" } })),
+      async () => {
+        await assert.rejects(webFetch("https://example.com/a.zip"), /application\/zip, not text/);
+      },
+    );
+    clearWebCaches();
+    await withFetch(
+      (url) => (failProviders(url) ? jsonResponse({ error: "boom" }, 500) : new Response("x".repeat(WEB_FETCH_MAX_BYTES * 2), { headers: { "content-type": "text/plain" } })),
+      async () => {
+        const page = await webFetch("https://example.com/big");
+        assert.ok(page.text.length > 0 && page.text.length <= WEB_FETCH_MAX_BYTES);
       },
     );
   });

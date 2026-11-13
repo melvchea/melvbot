@@ -7,7 +7,7 @@ import { runGoogleCli } from "../google/cli.js";
 import { insertAutoHistoryLine } from "../note/notes.js";
 import { validateProcedureNoteBody } from "../note/note_schema.js";
 import { extractSection } from "./confirm.js";
-import { assertFetchableUrl, assertPublicHost } from "./net_guard.js";
+import { assertFetchableUrl, assertPublicHost, pinnedFetch } from "./net_guard.js";
 import { type CallerKind, routedSearch } from "./search_router.js";
 import { fetchHtmlViaBrightData } from "./providers/brightdata.js";
 import { scrapeViaFirecrawl } from "./providers/firecrawl.js";
@@ -320,7 +320,7 @@ export function mergeSaveSection(body: string, section: SaveSection, text: strin
 async function fetchOnce(url: URL, signal: AbortSignal): Promise<Response> {
   assertFetchableUrl(url);
   await assertPublicHost(url.hostname);
-  return fetch(url, { redirect: "manual", signal });
+  return pinnedFetch(url, { redirect: "manual", signal });
 }
 
 export type WebFetchResult = { url: string; contentType: string; text: string };
@@ -629,6 +629,26 @@ export async function webFetchMany(rawUrls: readonly string[]): Promise<string> 
   return failures.length ? `${pages.join("\n\n")}\n\nFailed (try another result, don't retry):\n${failures.join("\n")}` : pages.join("\n\n");
 }
 
+/** Reads at most `maxBytes` of the body, cancelling the stream at the cap instead of buffering a huge page. */
+async function readCappedText(response: Response, maxBytes: number): Promise<string> {
+  if (!response.body) {
+    return "";
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (total < maxBytes) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    chunks.push(value);
+    total += value.byteLength;
+  }
+  await reader.cancel().catch(() => {});
+  return Buffer.concat(chunks).subarray(0, maxBytes).toString("utf8");
+}
+
 async function fetchInProcess(rawUrl: string, timeoutMs = WEB_FETCH_TIMEOUT_MS): Promise<WebFetchResult> {
   let current = new URL(rawUrl);
   const controller = new AbortController();
@@ -647,9 +667,10 @@ async function fetchInProcess(rawUrl: string, timeoutMs = WEB_FETCH_TIMEOUT_MS):
       if (/application\/pdf/i.test(contentType)) {
         throw new Error(`${rawUrl} is a PDF and PDF text extraction is not supported — use the search snippet or another result`);
       }
-      const buffer = await response.arrayBuffer();
-      const clipped = buffer.byteLength > WEB_FETCH_MAX_BYTES ? buffer.slice(0, WEB_FETCH_MAX_BYTES) : buffer;
-      const raw = Buffer.from(clipped).toString("utf8");
+      if (contentType && !/^(text\/|application\/(json|xml|xhtml|rss|atom|ld\+json))|\+(json|xml)\b/i.test(contentType)) {
+        throw new Error(`${rawUrl} is ${contentType.split(";")[0]}, not text — use the search snippet or another result`);
+      }
+      const raw = await readCappedText(response, WEB_FETCH_MAX_BYTES);
       const text = capText(contentType.includes("html") ? htmlToMarkdown(raw, current.toString()) : raw);
       return { url: current.toString(), contentType, text };
     }

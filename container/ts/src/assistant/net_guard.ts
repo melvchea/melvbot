@@ -1,4 +1,5 @@
 import { lookup } from "node:dns/promises";
+import { Agent, fetch as undiciFetch } from "undici";
 
 let hostLookup: typeof lookup = lookup;
 
@@ -96,4 +97,37 @@ export function assertFetchableUrl(url: URL): void {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error(`unsupported URL scheme: ${url.protocol}`);
   }
+}
+
+/**
+ * Connect-time DNS check: the address that is validated is the address that is dialled, so a host that
+ * answers public for assertPublicHost and private for the later connect (DNS rebinding) is refused.
+ */
+export function pinnedLookup(
+  hostname: string,
+  _options: unknown,
+  callback: (err: Error | null, addresses?: { address: string; family: number }[]) => void,
+): void {
+  hostLookup(hostname, { all: true }).then(
+    (records) => {
+      const bad = records.find((record) => isDisallowedIp(record.address));
+      if (records.length === 0 || bad) {
+        callback(new Error(`refusing to fetch a private address: ${hostname}${bad ? ` -> ${bad.address}` : ""}`));
+      } else {
+        callback(null, records);
+      }
+    },
+    (error: Error) => callback(error),
+  );
+}
+
+const nativeFetch = globalThis.fetch;
+const pinnedAgent = new Agent({ connect: { lookup: pinnedLookup as never } });
+
+/** fetch() that dials only public addresses. undici's own fetch is needed for its Agent; a test-stubbed global fetch is used as is. */
+export function pinnedFetch(url: URL, init: { redirect: "manual"; signal: AbortSignal }): Promise<Response> {
+  if (globalThis.fetch !== nativeFetch) {
+    return globalThis.fetch(url, init);
+  }
+  return undiciFetch(url, { ...init, dispatcher: pinnedAgent }) as unknown as Promise<Response>;
 }
