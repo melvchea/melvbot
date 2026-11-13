@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
-import { conversationDbPath } from "./conversation_store.js";
+import { conversationDbPath, DB_BUSY_TIMEOUT_MS } from "./conversation_store.js";
 import { noteTokens } from "./recall.js";
 
 export type NoteFtsRow = {
@@ -13,7 +13,7 @@ export type NoteFtsRow = {
 };
 
 function openFtsDb(dbPath = conversationDbPath()): DatabaseSync {
-  return new DatabaseSync(dbPath);
+  return new DatabaseSync(dbPath, { timeout: DB_BUSY_TIMEOUT_MS });
 }
 
 export function ensureNoteFts(db: DatabaseSync): void {

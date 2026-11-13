@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 
@@ -13,6 +14,31 @@ import {
   type StoredMessage,
   saveEpisode,
 } from "../../src/assistant/conversation_store.js";
+
+// Bug: ddeploy rolled back because doctor got "database is locked" while the fresh daemon was writing.
+test("opening the conversation DB waits out a short write lock held by another process", async () => {
+  const dbPath = tempDbPath();
+  latestEpisode("chat", dbPath); // creates the schema
+  const holder = spawn(
+    process.execPath,
+    [
+      "-e",
+      `const { DatabaseSync } = require("node:sqlite");
+       const db = new DatabaseSync(process.argv[1]);
+       db.exec("BEGIN EXCLUSIVE");
+       console.log("locked");
+       setTimeout(() => { db.exec("COMMIT"); }, 400);`,
+      dbPath,
+    ],
+    { stdio: ["ignore", "pipe", "inherit"] },
+  );
+  try {
+    await new Promise<void>((resolve) => holder.stdout.once("data", () => resolve()));
+    assert.doesNotThrow(() => latestEpisode("chat", dbPath));
+  } finally {
+    holder.kill();
+  }
+});
 
 test("saveEpisode keeps the newest 20 episodes per chat and omits untrusted web blocks; formatEpisode replaces untrusted blocks", () => {
   const dbPath = tempDbPath();

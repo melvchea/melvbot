@@ -49,12 +49,15 @@ export function conversationDbPath(): string {
   );
 }
 
+/** Wait this long on a locked DB (daemon startup vs doctor/CLI writes) instead of failing at once. */
+export const DB_BUSY_TIMEOUT_MS = 5000;
+
 function openDb(dbPath = conversationDbPath()): DatabaseSync {
   const dir = path.dirname(dbPath);
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
-  const db = new DatabaseSync(dbPath);
+  const db = new DatabaseSync(dbPath, { timeout: DB_BUSY_TIMEOUT_MS });
   db.exec(`
     CREATE TABLE IF NOT EXISTS messages (
       chat_key TEXT NOT NULL,
