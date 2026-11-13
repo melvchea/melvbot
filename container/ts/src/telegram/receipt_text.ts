@@ -54,12 +54,18 @@ export function friendlyCliOutput(stdout: string): string {
   try {
     const parsed = JSON.parse(trimmed) as {
       receipt?: unknown;
+      message?: unknown;
+      verified?: unknown;
       title?: unknown;
       url?: unknown;
       note?: { linked?: unknown; slug?: unknown };
     };
     if (isWriteReceipt(parsed.receipt)) {
       return formatReceipt(parsed.receipt);
+    }
+    // Flat receipts (`note rename`, `note rename-slug`) carry a ready sentence in `message`.
+    if (parsed.receipt === true && typeof parsed.message === "string" && parsed.message !== "") {
+      return parsed.verified === false ? `${parsed.message}\nCould not verify the write; please check it.` : parsed.message;
     }
     // Handle sheet creation response
     if (typeof parsed.title === "string" && typeof parsed.url === "string") {
