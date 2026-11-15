@@ -32,7 +32,7 @@ import {
 } from "../telegram/weather.js";
 import { dcaMessageStatePath, maintMessageStatePath, morningMessageStatePath, outlookMessageStatePath, publishReplacingMessage, publishWeatherMessage, readWeatherWatch, replacePriorMessages, shopeeMessageStatePath, writeWeatherWatch } from "../telegram/weather_message.js";
 import { latestSlotToday, slotKey } from "./due.js";
-import { renderMorningUpdate, splitMorningUpdate } from "./morning_update.js";
+import { renderMorningUpdate, splitMorningUpdate, tasksMessageIndex } from "./morning_update.js";
 import { formatMaintReportMessages, TELEGRAM_VISIBLE_LIMIT } from "./maint_report.js";
 import { buildHeadsUpBlock, buildMonthlyReviewBlock, type BundleBlock } from "../nudges/bundle.js";
 import { digestLogButtonsKeyboard, nudgeButtonsKeyboard } from "../nudges/callbacks.js";
@@ -266,13 +266,13 @@ async function sendMorningUpdate(
   const api = new TelegramApi(token);
   const chunks = splitMorningUpdate(text, { news });
   const sentIds: number[] = [];
+  const buttonsAt = tasksMessageIndex(chunks);
   for (const [index, payload] of chunks.entries()) {
-    const isLast = index === chunks.length - 1;
     const extra: { entities?: typeof payload.entities; reply_markup?: { inline_keyboard: unknown[] } } = {};
     if (payload.entities?.length) {
       extra.entities = payload.entities;
     }
-    if (isLast && tasks.length > 0) {
+    if (index === buttonsAt && tasks.length > 0) {
       extra.reply_markup = { inline_keyboard: taskButtonRows(tasks) };
     }
     const sent = await api.sendMessage(Number(dest), payload.text, extra);

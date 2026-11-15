@@ -268,6 +268,11 @@ export function splitMorningUpdate(
   return messages;
 }
 
+/** Index of the Google Tasks message (task buttons go there, not on the last news message); -1 when absent. */
+export function tasksMessageIndex(messages: readonly MorningUpdateMessage[]): number {
+  return messages.findIndex((m) => m.text.startsWith("📋"));
+}
+
 const NEWS_HEADINGS: readonly [string, string][] = [
   ["world", "🌍 World News (last 24h):"],
   ["tech", "💻 Tech News (last 24h):"],

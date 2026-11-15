@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderMorningUpdate, splitMorningUpdate } from "../src/cron/morning_update.js";
+import { renderMorningUpdate, splitMorningUpdate, tasksMessageIndex } from "../src/cron/morning_update.js";
+
+test("task buttons target the Google Tasks message, not the last news message", () => {
+  const now = new Date("2026-10-06T23:30:00Z");
+  const item = [{ title: "Quake - BBC News", url: "https://bbc.example/a", published: now, source: "bbc" }];
+  const chunks = splitMorningUpdate(renderMorningUpdate(now, ["• 09:00 Standup"], ["• Pay bill"], { world: item, tech: [], singapore: item }), {});
+  assert.equal(chunks.length, 4);
+  assert.equal(tasksMessageIndex(chunks), 1);
+  assert.equal(tasksMessageIndex(chunks.filter((_, i) => i !== 1)), -1);
+});
 
 test("morning update renders from prefetched data without Claude and survives the sender's splitter", () => {
   const now = new Date("2026-10-06T23:30:00Z"); // Wed 7 Oct SGT
