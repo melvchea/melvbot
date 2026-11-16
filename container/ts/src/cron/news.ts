@@ -22,8 +22,8 @@ const FEEDS: Record<string, FeedSpec> = {
     primaries: [
       "https://www.theregister.com/headlines.atom",
       "https://feeds.bbci.co.uk/news/technology/rss.xml",
-      "https://www.techinasia.com/feed",
-      "https://www.theverge.com/rss/index.xml",
+      "https://techcrunch.com/feed/",
+      "https://e27.co/feed/",
     ],
   },
   singapore: {

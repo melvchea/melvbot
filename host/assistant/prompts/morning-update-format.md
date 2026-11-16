@@ -86,7 +86,7 @@ Good (complete, at most 10 words, distinct):
 
 ## Data sources
 
-Calendar and Tasks come from Script Output (above). News comes from `news_*` only: World = BBC World; Tech = The Register, then BBC Technology, Tech in Asia, The Verge; Singapore = CNA, Straits Times, Mothership.
+Calendar and Tasks come from Script Output (above). News comes from `news_*` only: World = BBC World; Tech = The Register, then BBC Technology, TechCrunch, e27; Singapore = CNA, Straits Times, Mothership.
 
 ## Send behaviour
 
