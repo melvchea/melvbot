@@ -43,7 +43,7 @@ Launch an ad-hoc Haiku 5.5 medium agent (`Agent` with `subagent_type: general-pu
 
 ## Claude Code wiring (`~/.claude/settings.json`, not in the repo)
 - `.claude/settings.json` allows `Agent(general-purpose)`; `Explore`, `Plan`, `claude`, `statusline-setup` and `claude-code-guide` are denied so they stay out of the prompt. `effortLevel: medium`; subagents default to Haiku (`CLAUDE_CODE_SUBAGENT_MODEL`).
-- Input-token settings: `MAX_THINKING_TOKENS=0`, `BASH_MAX_OUTPUT_LENGTH=5000`, `autoCompactEnabled` with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=40`, `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`, claude.ai MCP servers off.
+- Input-token settings: `MAX_THINKING_TOKENS=0`, `BASH_MAX_OUTPUT_LENGTH=5000`, `autoCompactEnabled` with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=40`, claude.ai MCP servers off.
 - `bin/statusline`: model + effort letter (L/M/H/XH/X), context %, Pro 5-hour and 7-day windows as `time left of window, unused %` (e.g. `4.2h/5h 97%l 4.1d/7d 87%l`; context is `2%u`); `Sonnet ` is shortened to `Snn`.
 - Custom agents must say `model: haiku` or omit `model`.
 
