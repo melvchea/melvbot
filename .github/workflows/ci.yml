@@ -95,7 +95,7 @@ jobs:
       - name: Install linters (versions in .github/ci, bumped by Dependabot)
         run: |
           python3 -m venv "$RUNNER_TEMP/lint"
-          "$RUNNER_TEMP/lint/bin/pip" install --quiet -r .github/ci/requirements.txt
+          "$RUNNER_TEMP/lint/bin/pip" install --quiet --require-hashes -r .github/ci/requirements.txt
 
       - name: Zizmor
         env:
