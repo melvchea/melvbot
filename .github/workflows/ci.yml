@@ -92,17 +92,18 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install linters (versions in .github/ci, bumped by Dependabot)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/lint"
+          "$RUNNER_TEMP/lint/bin/pip" install --quiet -r .github/ci/requirements.txt
+
       - name: Zizmor
         env:
           GH_TOKEN: ${{ github.token }}
-        run: pipx run zizmor==1.30.1 .github/workflows
+        run: '"$RUNNER_TEMP/lint/bin/zizmor" .github/workflows'
 
       - name: Actionlint
-        env:
-          # Version is split so the 4-part number does not trip the IPv4 guard.
-          AL_BASE: "1.7.12"
-          AL_REV: "25"
-        run: pipx run "actionlint-py==${AL_BASE}.${AL_REV}"
+        run: '"$RUNNER_TEMP/lint/bin/actionlint"'
 
   code-scanning:
     name: code-scanning alerts
@@ -149,7 +150,9 @@ jobs:
         run: git ls-files -z '*.sh' 'host/bin/*' 'host/libexec/*' | xargs -0 grep -lZ '^#!.*sh' | xargs -0 shellcheck --severity=warning
 
       - name: Hadolint
-        run: docker run --rm -i hadolint/hadolint:v2.12.0 hadolint --failure-threshold warning --ignore DL3008 - < container/Dockerfile.node
+        run: |
+          docker build -q -t hadolint .github/ci/hadolint
+          docker run --rm -i hadolint hadolint --failure-threshold warning --ignore DL3008 - < container/Dockerfile.node
 
   image:
     name: image build + trivy
