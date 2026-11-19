@@ -1,9 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ddeploy:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
       "Bash(docker exec melvbot *)",
       "Bash(docker compose:*)",
       "Bash(docker restart:*)",
@@ -23,7 +20,6 @@
       "Bash(docker exec melvbot printenv*)",
       "Bash(docker inspect*)",
       "Bash(docker compose config*)",
-      "WebFetch",
       "WebSearch",
       "Agent(Plan)",
       "Agent(Explore)",

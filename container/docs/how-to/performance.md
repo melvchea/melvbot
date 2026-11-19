@@ -1,6 +1,6 @@
 # Assistant performance (Melvbot)
 
-Melvbot's TypeScript daemon is the only conversational backend. It runs the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`) with `claude-haiku-5-5`, thinking off by default (`reasoning = "off"`); `think:` or complex-prose turns switch to effort `medium` for that turn only. `claude_session.ts` runs one `query()` per Telegram turn; the SDK spawns a native `claude` subprocess for it (about 1.5 s of startup, about 220 MiB peak).
+Melvbot's TypeScript daemon is the only conversational backend. It runs the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`) with `claude-haiku-5-5`, `reasoning = "low"` by default (`off` sends `thinking: disabled`, which Haiku 5.5 ignores: it still thinks adaptively, and about 95% of turns logged `thinking=1`; probed 2026-11-19, anthropics/claude-code#104985); `think:` or complex-prose turns switch to effort `medium` for that turn only. `claude_session.ts` runs one `query()` per Telegram turn; the SDK spawns a native `claude` subprocess for it (about 1.5 s of startup, about 220 MiB peak).
 
 ## Sessions
 

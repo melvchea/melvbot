@@ -1,4 +1,4 @@
-/** Turns that get medium thinking (4096-token budget) for that turn only; reasoning is otherwise off. */
+/** Turns that get medium thinking (4096-token budget) for that turn only; `reasoning = "off"` is otherwise requested, but Haiku 5.5 ignores it (anthropics/claude-code#104985). */
 export const THINK_BUDGET_TOKENS = 4096;
 
 export const THINK_PROSE_RULES: readonly { name: string; pattern: RegExp }[] = [
