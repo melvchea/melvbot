@@ -65,7 +65,7 @@ Live TypeScript tree under `ts/src`. `index.ts` dispatches the CLI (`doctor`, `s
 | | `assistant/system_prompt.ts`, `recall.ts`, `recall_index.ts` | Prompt build and cache refresh, note recall |
 | | `assistant/fallback.ts` | Read-only Groq/MiniMax degraded mode |
 | | `assistant/web_content.ts` | HTML to markdown, size cap, TTL caches |
-| Notes | `note/*` | Google Docs notes; `read_cache.ts` is a 30 s read cache |
+| Notes | `note/*` | Google Docs notes |
 | Sheets | `sheet/*` | Spend, EV, rules |
 | Google / Outlook | `google/*`, `outlook/*` | Calendar, Tasks, token handling, mail digest |
 | Reminders | `reminders/*`, `nudges/*` | Ticker, formatter, proactive nudges |
