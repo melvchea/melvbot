@@ -107,6 +107,29 @@ test("weekly backup returns a titled failure line when one export fails and stil
   }
 });
 
+test("weekly backup retries a timed-out export instead of failing the run", async () => {
+  const { dir: home, restore: restoreEnv } = googleHome({ notes: { house: "doc-n" } });
+  const root = path.join(home, "backups");
+  let noteCalls = 0;
+  const stub = stubFetch((url) => {
+    if (url.pathname.includes("doc-n")) {
+      noteCalls += 1;
+      if (noteCalls === 1) {
+        throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+      }
+      return new Response("# note\n");
+    }
+    return new Response(JSON.stringify({ sheets: [{ properties: { title: "Tab" } }], values: [["x"]] }));
+  });
+  try {
+    assert.equal(await runBackup(new Date("2026-10-11T04:00:00Z"), root), null);
+    assert.equal(noteCalls, 2);
+  } finally {
+    stub.restore();
+    restoreEnv();
+  }
+});
+
 test("weekly backup fails an empty note export instead of writing an empty file", async () => {
   const { dir: home, restore: restoreEnv } = googleHome({ notes: { house: "doc-n" } });
   const root = path.join(home, "backups");

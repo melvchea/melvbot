@@ -3,7 +3,15 @@ import path from "node:path";
 
 import { loadNotesToml, loadSheetsToml } from "../sheet/toml.js";
 import { googleAccessToken } from "../google/token.js";
-import { GOOGLE_FETCH_TIMEOUT_MS } from "../google/retry.js";
+import {
+  GOOGLE_FETCH_TIMEOUT_MS,
+  GOOGLE_RETRY_LIMIT,
+  delay,
+  googleRetryAfterMs,
+  googleRetryDelayMs,
+  isGoogleTimeout,
+  shouldRetryGoogleStatus,
+} from "../google/retry.js";
 import { titleLine } from "../telegram/title_line.js";
 
 export const BACKUP_KEEP = 8;
@@ -19,16 +27,31 @@ export function backupRoot(): string {
   return path.join(process.env.HOME ?? "/home/melvbot", ".melvbot", "backups");
 }
 
+/** Read-only GET, so a timeout or retryable status is safe to retry. */
 async function googleGet(url: string): Promise<Response> {
-  const token = await googleAccessToken();
-  const response = await fetch(url, {
-    headers: { authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(GOOGLE_FETCH_TIMEOUT_MS),
-  });
-  if (!response.ok) {
-    throw new Error(`Google export failed with status ${response.status}`);
+  for (let attempt = 0; ; attempt += 1) {
+    const token = await googleAccessToken();
+    let response: Response | undefined;
+    try {
+      response = await fetch(url, {
+        headers: { authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(GOOGLE_FETCH_TIMEOUT_MS),
+      });
+    } catch (error) {
+      if (!isGoogleTimeout(error) || attempt >= GOOGLE_RETRY_LIMIT - 1) {
+        throw error;
+      }
+    }
+    if (response?.ok) {
+      return response;
+    }
+    if (response && !shouldRetryGoogleStatus(response.status, attempt)) {
+      throw new Error(`Google export failed with status ${response.status}`);
+    }
+    await delay(
+      (response && googleRetryAfterMs(response.status, response.headers.get("retry-after"))) || googleRetryDelayMs(attempt),
+    );
   }
-  return response;
 }
 
 async function driveExportMarkdown(fileId: string): Promise<string> {
