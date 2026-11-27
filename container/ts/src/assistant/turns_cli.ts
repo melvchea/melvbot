@@ -73,7 +73,7 @@ export function runTurnsCli(args: string[]): number {
   for (const turn of turns) {
     counts.set(turn.route, (counts.get(turn.route) ?? 0) + 1);
     const prompt = turn.prompt.replace(/\s+/g, " ").slice(0, 300);
-    const timing = `${turn.ms}ms ttft=${turn.ttftMs ?? "-"} spawn=${turn.spawnMs ?? "-"} rt=${turn.roundTrips ?? "-"} ctx=${turn.contextTokens ?? "-"} cr=${turn.cacheReadTokens ?? "-"} cw=${turn.cacheWriteTokens ?? "-"} pre=${turn.preMs ?? "-"} tool=${turn.toolMs ?? "-"}/${turn.toolCalls ?? "-"} think=${turn.thinking ? "y" : "n"}${turn.thinkRule ? `:${turn.thinkRule}` : ""}${turn.recallMiss === 1 ? " recall_miss" : ""}`;
+    const timing = `${turn.ms}ms ttft=${turn.ttftMs ?? "-"} spawn=${turn.spawnMs ?? "-"} rt=${turn.roundTrips ?? "-"} ctx=${turn.contextTokens ?? "-"} cr=${turn.cacheReadTokens ?? "-"} cw=${turn.cacheWriteTokens ?? "-"} pre=${turn.preMs ?? "-"} tool=${turn.toolMs ?? "-"}/${turn.toolCalls ?? "-"} think=${turn.thinking ? "y" : "n"}${turn.thinkRule ? `:${turn.thinkRule}` : ""}${turn.recallMiss === 1 ? " recall_miss" : ""}${turn.model ? ` model=${turn.model}` : ""}`;
     process.stdout.write(`${turn.createdAt.slice(0, 16)}\t${turn.route}\t${turn.status}\t${timing}\t${turn.tools.join(",") || "-"}\t${prompt}\n`);
   }
   const summary = [...counts.entries()].map(([name, count]) => `${name}=${count}`).join(" ");

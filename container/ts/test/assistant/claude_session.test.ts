@@ -33,7 +33,7 @@ function installFake(opts: { holdUntilInterrupt?: boolean; dieAfterFirst?: boole
       { type: "stream_event", parent_tool_use_id: null, session_id: SESSION, event: { type: "message_start" } },
       { type: "stream_event", parent_tool_use_id: null, session_id: SESSION, event: { type: "content_block_delta", delta: { type: "text_delta", text: "hel" } } },
       { type: "stream_event", parent_tool_use_id: null, session_id: SESSION, event: { type: "content_block_delta", delta: { type: "text_delta", text: "lo" } } },
-      { type: "assistant", session_id: SESSION, message: { content: [{ type: "text", text: `hello ${mine}.${n}` }], usage: { input_tokens: 3, cache_read_input_tokens: 100, cache_creation_input_tokens: 7 } } },
+      { type: "assistant", session_id: SESSION, message: { model: "claude-sonnet-5-5", content: [{ type: "text", text: `hello ${mine}.${n}` }], usage: { input_tokens: 3, cache_read_input_tokens: 100, cache_creation_input_tokens: 7 } } },
       { type: "result", subtype: "success", is_error: false, session_id: SESSION, usage: { input_tokens: 5, output_tokens: 2 } },
     ];
     let interruptWake: (() => void) | undefined;
@@ -117,6 +117,7 @@ test("consecutive turns in a chat reuse one live query and stream growing round 
     assert.equal(liveSessionCount(), 1);
     assert.deepEqual(seen, ["hel", "hello"]);
     assert.equal(first.text, "hello 1.1");
+    assert.equal(first.model, "claude-sonnet-5-5");
     assert.equal(second.text, "hello 1.2");
     assert.equal(second.spawnMs, 0);
     assert.equal(second.roundTrips, 1);

@@ -190,6 +190,8 @@ export type ClaudeTurnResult = {
   pendingConfirmation?: PendingConfirmation;
   /** A thinking block was streamed this turn. */
   thinkingRan?: boolean;
+  /** Model id of the turn's last API round, as the API reported it. */
+  model?: string;
   /** Prompt sent to first streamed text delta. */
   ttftMs?: number;
   /** Query start to first SDK message; 0 when a live process was reused. */
@@ -465,6 +467,7 @@ async function runClaudeTurnOnce(options: ClaudeTurnOptions): Promise<ClaudeTurn
   let live: LiveSession | undefined;
   let thinkingSwitched: LiveSession | undefined;
   let thinkingRan = false;
+  let turnModel: string | undefined;
   let reused = false;
   let oneShot: Query | undefined;
   let iterator: AsyncIterator<SDKMessage>;
@@ -611,6 +614,7 @@ async function runClaudeTurnOnce(options: ClaudeTurnOptions): Promise<ClaudeTurn
       } else if (message.type === "assistant") {
         assistantError ??= message.error;
         roundTrips += 1;
+        turnModel = (message.message as { model?: string }).model ?? turnModel;
         const roundUsage = (message.message as { usage?: { input_tokens?: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } }).usage;
         if (roundUsage) {
           contextTokens = (roundUsage.input_tokens ?? 0) + (roundUsage.cache_read_input_tokens ?? 0) + (roundUsage.cache_creation_input_tokens ?? 0);
@@ -723,6 +727,7 @@ async function runClaudeTurnOnce(options: ClaudeTurnOptions): Promise<ClaudeTurn
     outputTokens,
     pendingConfirmation: turnState.pendingConfirmation ?? undefined,
     thinkingRan,
+    model: turnModel,
     ttftMs,
     spawnMs,
     roundTrips,

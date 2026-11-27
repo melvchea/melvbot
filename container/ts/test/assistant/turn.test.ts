@@ -29,6 +29,7 @@ function fakeClaudeTurn(script: {
       inputTokens: 10,
       outputTokens: 5,
       pendingConfirmation: script.pendingConfirmation,
+      model: "claude-sonnet-5-5",
     };
   };
   return { calls, run };
@@ -151,5 +152,6 @@ test("think trigger: prefix is stripped, prose rule triggers, a short plain mess
     assert.equal((await run("what's in my trip note?")).think, false);
     const turns = recentTurns(1, dbPath);
     assert.deepEqual(turns.map((t) => t.thinkRule), ["prefix", "compare", null, null, null, null, null, "prefix", null, null, null, null, null]);
+    assert.equal(turns[0].model, "claude-sonnet-5-5");
   });
 });

@@ -62,6 +62,7 @@ function logAssistantTurn(fields: {
   cacheWriteTokens?: number | null;
   thinking?: boolean | null;
   thinkRule?: string | null;
+  model?: string | null;
   preMs?: number | null;
   toolMs?: number | null;
   toolCalls?: number | null;
@@ -91,6 +92,7 @@ function logAssistantTurn(fields: {
         cacheWriteTokens: fields.cacheWriteTokens,
         thinking: fields.thinking,
         thinkRule: fields.thinkRule,
+        model: fields.model,
         preMs: fields.preMs,
         toolMs: fields.toolMs,
         toolCalls: fields.toolCalls,
@@ -375,6 +377,7 @@ export async function runTurn(rawOptions: RunTurnOptions, deps: RunTurnDeps = {}
     cacheWriteTokens: outcome.cacheWriteTokens,
     thinking: outcome.thinkingRan ?? false,
     thinkRule: trigger.rule,
+    model: outcome.model,
     preMs,
     toolMs: outcome.toolMs,
     toolCalls: outcome.toolCalls,
