@@ -15,7 +15,7 @@ import { EMPTY_INLINE_KEYBOARD } from "../src/telegram/progress_edits.js";
 
 const CONFIRM_YES_PREFIX = "cfy:";
 
-test("expired confirm callback replaces the message with an expiry note and no keyboard", async () => {
+test("expired or repeat confirm tap only toasts and never edits the message", async () => {
   const calls: unknown[][] = [];
   const api = {
     editMessageText: async (...args: unknown[]) => void calls.push(["edit", ...args]),
@@ -27,9 +27,25 @@ test("expired confirm callback replaces the message with an expiry note and no k
     data: `${CONFIRM_YES_PREFIX}nosuchcode`,
     message: { message_id: 9, chat: { id: 42 } },
   });
+  assert.deepEqual(calls, [["answer", "cb1", "Expired or already used"]]);
+});
+
+test("confirm tap strips the keyboard first, then a repeat tap leaves the result", async () => {
+  clearAllConfirmations();
+  const { code } = createConfirmation("telegram:42", "cron delete", {}, "Delete job?");
+  const calls: unknown[][] = [];
+  const api = {
+    editMessageText: async (...args: unknown[]) => void calls.push(["edit", ...args]),
+    answerCallback: async (...args: unknown[]) => void calls.push(["answer", ...args]),
+  } as unknown as TelegramApi;
+  const tap = { id: "cb2", from: { id: 7 }, data: `${CONFIRM_YES_PREFIX}${code}`, message: { message_id: 9, chat: { id: 42 } } };
+  await handleCallback(api, tap);
+  await handleCallback(api, tap);
   assert.deepEqual(calls, [
-    ["edit", 42, 9, "Expired, ask me again.", { reply_markup: EMPTY_INLINE_KEYBOARD }],
-    ["answer", "cb1", "expired"],
+    ["edit", 42, 9, "Working…", { reply_markup: EMPTY_INLINE_KEYBOARD }],
+    ["edit", 42, 9, "Confirmed.", { reply_markup: EMPTY_INLINE_KEYBOARD }],
+    ["answer", "cb2"],
+    ["answer", "cb2", "Expired or already used"],
   ]);
 });
 

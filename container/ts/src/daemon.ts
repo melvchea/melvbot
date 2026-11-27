@@ -798,10 +798,8 @@ async function handleConfirmCallback(
   const messageId = update.message?.message_id;
   const confirmation = consumeConfirmation(code);
   if (!confirmation) {
-    if (chatId !== undefined && messageId !== undefined) {
-      await api.editMessageText(chatId, messageId, "Expired, ask me again.", { reply_markup: EMPTY_INLINE_KEYBOARD });
-    }
-    await api.answerCallback(update.id, "expired");
+    // Toast only: a repeat tap on a used code must not overwrite the finished result.
+    await api.answerCallback(update.id, "Expired or already used");
     return true;
   }
   if (chatId === undefined || messageId === undefined || confirmation.chatKey !== chatKeyFor(chatId)) {
@@ -820,6 +818,8 @@ async function handleConfirmCallback(
     await api.answerCallback(update.id);
     return true;
   }
+  // Strip the buttons before the slow CLI call so a second tap has nothing to press.
+  await api.editMessageText(chatId, messageId, "Working…", { reply_markup: EMPTY_INLINE_KEYBOARD });
   const text = await executeConfirmation(confirmation, code);
   await api.editMessageText(chatId, messageId, text, { reply_markup: EMPTY_INLINE_KEYBOARD });
   await api.answerCallback(update.id);
