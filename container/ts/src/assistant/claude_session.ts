@@ -27,6 +27,8 @@ import { THINK_BUDGET_TOKENS } from "./think_trigger.js";
 
 /** `think:` / complex-prose turns run at this effort; the session effort comes from `reasoning`. */
 const THINK_EFFORT = "medium" as const;
+/** `think:` / complex-prose turns also switch the live process to this model for that turn only. */
+const THINK_MODEL = "claude-sonnet-5-5";
 /** No SDK message for this long (and no tool running) means the turn is hung; the CLI streams deltas, so real work never goes this quiet. */
 export const STALL_TIMEOUT_MS = 60_000;
 /** Same, while a tool call is in flight (CLI tools and web fetches can legitimately be silent for a while). */
@@ -484,6 +486,7 @@ async function runClaudeTurnOnce(options: ClaudeTurnOptions): Promise<ClaudeTurn
       } else {
         await live.q.applyFlagSettings({ effortLevel: THINK_EFFORT });
       }
+      await live.q.setModel(THINK_MODEL);
       thinkingSwitched = live;
     }
     live.input.push(userMessage(options.prompt));
@@ -497,9 +500,10 @@ async function runClaudeTurnOnce(options: ClaudeTurnOptions): Promise<ClaudeTurn
       options: {
         ...baseOptions,
         ...(options.think
-          ? options.reasoning === "off"
-            ? { thinking: { type: "enabled" as const, budgetTokens: THINK_BUDGET_TOKENS } }
-            : { effort: THINK_EFFORT }
+          ? {
+              model: THINK_MODEL,
+              ...(options.reasoning === "off" ? { thinking: { type: "enabled" as const, budgetTokens: THINK_BUDGET_TOKENS } } : { effort: THINK_EFFORT }),
+            }
           : {}),
         mcpServers: { [MCP_SERVER_NAME]: buildMelvbotMcpServer(turnState) },
         abortController,
@@ -697,6 +701,7 @@ async function runClaudeTurnOnce(options: ClaudeTurnOptions): Promise<ClaudeTurn
     if (thinkingSwitched) {
       const q = thinkingSwitched.q;
       await (options.reasoning === "off" ? q.setMaxThinkingTokens(0) : q.applyFlagSettings({ effortLevel: options.reasoning })).catch(() => undefined);
+      await q.setModel(baseOptions.model).catch(() => undefined);
     }
     if (live) {
       live.busy = false;

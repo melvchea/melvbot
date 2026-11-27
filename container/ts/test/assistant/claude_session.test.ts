@@ -15,7 +15,7 @@ import { withTempDb } from "../helpers/temp.js";
 
 const SESSION = "11111111-2222-3333-4444-555555555555";
 
-type FakeCall = { prompt: unknown; options: Record<string, unknown>; closed: boolean; interrupts: number; thinking: (number | null)[] };
+type FakeCall = { prompt: unknown; options: Record<string, unknown>; closed: boolean; interrupts: number; thinking: (number | null)[]; models: (string | undefined)[] };
 
 /**
  * A fake SDK query: in streaming mode answers every pushed user message with deltas, an assistant message and a result.
@@ -25,7 +25,7 @@ function installFake(opts: { holdUntilInterrupt?: boolean; dieAfterFirst?: boole
   const calls: FakeCall[] = [];
   let spawned = 0;
   setQueryImpl((params: { prompt: unknown; options: Record<string, unknown> }) => {
-    const call: FakeCall = { prompt: params.prompt, options: params.options, closed: false, interrupts: 0, thinking: [] };
+    const call: FakeCall = { prompt: params.prompt, options: params.options, closed: false, interrupts: 0, thinking: [], models: [] };
     calls.push(call);
     spawned += 1;
     const mine = spawned;
@@ -65,6 +65,9 @@ function installFake(opts: { holdUntilInterrupt?: boolean; dieAfterFirst?: boole
       },
       setMaxThinkingTokens: async (n: number | null) => {
         call.thinking.push(n);
+      },
+      setModel: async (m?: string) => {
+        call.models.push(m);
       },
       close: () => {
         call.closed = true;
@@ -170,12 +173,14 @@ test("a think turn enables thinking on the live query and resets it to disabled 
     const calls = installFake({ holdUntilInterrupt: true, onHold: held.resolve });
     await runClaudeTurn(base(dbPath));
     assert.deepEqual(calls[0].thinking, []);
+    assert.deepEqual(calls[0].models, []);
     const controller = new AbortController();
     const turn = runClaudeTurn(base(dbPath, { think: true, signal: controller.signal }));
     await held.promise;
     controller.abort();
     await assert.rejects(turn, /cancelled/);
     assert.deepEqual(calls[0].thinking, [4096, 0]);
+    assert.deepEqual(calls[0].models, ["claude-sonnet-5-5", "claude-haiku-4-5"]);
     assert.equal(calls.length, 1);
   });
 });
