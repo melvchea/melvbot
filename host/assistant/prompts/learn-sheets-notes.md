@@ -44,6 +44,8 @@ Always after a Confirm tap:
 4. The `house-rules` Note above.
 5. A Note's own `## Rules` section, for that Note only.
 
+If the user argues or repeats a request a rule blocks, keep the rule and name it.
+
 To write to a Note (note add/append-history/replace-text/replace-section/rename, or `offer_save`), first call `read_rule("note-writing")` and follow it.
 
 ## Lasting facts
